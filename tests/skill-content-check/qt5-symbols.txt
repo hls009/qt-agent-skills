@@ -1,0 +1,97 @@
+# Qt 5 API the skills assert is AVAILABLE in Qt 5.15.
+#
+# Every line is checked against the public headers of the installation named by
+# $QT5_DIR (or a probed prefix) by tests/skill-content-check/check_skills.py.
+# A line that the kit does not declare is a finding: the skills would be telling
+# a reviewer to leave real Qt 6 code alone.
+#
+# Symbols here were verified on Qt 5.15.2 (msvc2019_64) — see
+# AUDIT-qt515-conformance-2026-10-06.md, section "Accepted as correct".
+# Write the token exactly as the skill prose writes it, so a stale entry that no
+# skill mentions any more is reported as REGSTALE.
+
+# Core text types that arrived late in the Qt 5 series
+QStringView
+qsizetype
+Qt::SkipEmptyParts
+Qt::KeepEmptyParts
+Qt::SplitBehavior
+Qt::SplitBehaviorFlags
+qAsConst
+
+# QObject / meta-object surface
+QMetaType::fromType
+QMetaType::type
+QVariant::userType
+QMetaObject::invokeMethod
+QTimer::callOnTimeout
+QDeadlineTimer
+QScopeGuard
+
+# Event and painting APIs that look Qt 6 but are Qt 5.15
+QWheelEvent::position
+QWheelEvent::globalPosition
+QColor::NameFormat
+QColor::name
+QIcon::name
+QFontMetrics::horizontalAdvance
+QPainter::TextAntialiasing
+QFont::PreferNoHinting
+QStyle::PM_ButtonIconSize
+QStyle::PM_SmallIconSize
+QStyle::PM_LargeIconSize
+
+# High DPI, localisation, palette
+Qt::AA_EnableHighDpiScaling
+Qt::AA_UseHighDpiPixmaps
+Qt::AA_UseStyleSheetPropagationInWidgetStyles
+QApplication::setHighDpiScaleFactorRoundingPolicy
+QPalette::resolve
+QPalette::PlaceholderText
+
+# Model/view and widget surface used by the fix wording
+QAbstractItemView::setCurrentIndex
+QAbstractItemView::setIconSize
+QTableView::selectRow
+QTableView::selectColumn
+QMainWindow::setIconSize
+QAbstractButton::setIconSize
+QStyledItemDelegate::initStyleOption
+QSizePolicy::setHeightForWidth
+QSizePolicy::hasHeightForWidth
+QSortFilterProxyModel::invalidate
+QSortFilterProxyModel::invalidateFilter
+
+# Core classes the DEP-* rules call "available but legacy" — present, not removed
+QRegExp
+QDesktopWidget
+QTextCodec
+QScopedPointer
+QSharedPointer
+QSharedDataPointer
+QAtomicInt
+QPair
+qSwap
+QVariant::type
+QUuid::toByteArray
+QTimeZone
+QVersionNumber
+QRandomGenerator
+QOperatingSystemVersion
+QNetworkRequest::setTransferTimeout
+
+# Gadget properties: 5.15 moc accepts the declaration AND the meta-object can reach
+# it. Verified on 5.15.2 headers (qmetaobject.h) and at runtime on 5.15.13:
+# readOnGadget() returns a valid QVariant, writeOnGadget() applies the value.
+# What 5.15 gadgets really cannot do is declare signals, so a gadget property has
+# no usable NOTIFY (audit P0-01).
+QMetaProperty::readOnGadget
+QMetaProperty::writeOnGadget
+QMetaProperty::resetOnGadget
+QMetaMethod::invokeOnGadget
+
+# Members the ban tables refer to by the wrong class (audit P0-19): these exist in
+# 5.15, so a ban or a mitigation must name the class it means.
+QDateTimeEdit::setCurrentSection
+QListWidget::setCurrentRow
+QCompleter::setCurrentRow

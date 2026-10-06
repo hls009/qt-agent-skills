@@ -1,0 +1,59 @@
+# Qt 5 CMake facts, checked against <Qt5>/lib/cmake instead of the headers.
+#
+# A bare name is asserted to EXIST in the kit (a macro, a package directory or an
+# imported target). A name prefixed with "!" is asserted NOT to exist — those are
+# the Qt 6 commands the skills forbid, plus the plausible target names that were
+# never shipped. Both directions matter: this fork's central claim is that the Qt 6
+# spelling is undefined in Qt 5, and a wrong "does not exist" sentence sends users
+# hunting for a module their kit does ship (audit P0-12).
+
+# Qt 5's own qt5_* commands
+qt5_add_resources
+qt5_add_big_resources
+qt5_add_binary_resources
+qt5_wrap_cpp
+qt5_wrap_ui
+qt5_add_translation
+qt5_create_translation
+qt5_import_plugins
+
+# The versionless aliases Qt 5.15 really does provide
+qt_add_resources
+qt_add_big_resources
+qt_add_binary_resources
+qt_wrap_cpp
+qt_wrap_ui
+
+# Imported executables Qt 5 ships for custom build steps
+Qt5::moc
+Qt5::uic
+Qt5::rcc
+Qt5::qmake
+
+# Quick/QML plumbing: exists in a full Qt 5 kit, out of scope for Widgets-only
+Qt5::Qml
+Qt5::Quick
+Qt5::QuickWidgets
+Qt5::QuickShapes
+qt_import_qml_plugins
+
+# Qt 6 CMake API — absent from every Qt 5 kit
+!qt_standard_project_setup
+!qt_add_executable
+!qt_add_library
+!qt_add_qml_module
+!qt_add_translations
+!qt_add_shaders
+!qt_add_plugin
+!qt_policy
+!QTP0001
+!qt_add_qml_imports
+!qt_deploy_qml_imports
+!qt_finalize_project
+!qt_finalize_target
+!qt5_add_rpath
+
+# Plausible names that were never shipped
+!Qt5::CanvasPainter
+!Qt5::WidgetsExtras
+!Qt5::LinguistTools

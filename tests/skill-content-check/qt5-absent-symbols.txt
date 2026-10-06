@@ -1,0 +1,68 @@
+# Qt 6 API the skills assert is ABSENT from Qt 5.15.
+#
+# Each line is checked against the same Qt 5 installation, class-scoped where the
+# claim is qualified. A line the kit DOES declare is a finding: the ban (or the
+# "this is a compile error" claim) is a false positive against code that compiles,
+# which is the failure this fork exists to prevent — see
+# AUDIT-qt515-conformance-2026-10-06.md P0-14.
+
+# String and container text API (Qt 6)
+QAnyStringView
+QByteArrayView
+QStringConverter
+QStringDecoder
+QStringEncoder
+QUtf16StringView
+QUtf8StringView
+QLatin1StringView
+
+# Property bindings (Qt 6)
+QProperty
+QBindable
+QUntypedProperty
+QPropertyWatcher
+
+# New value and time types (Qt 6)
+QLocalTime
+QDayTime
+QSizeMetrics
+QNativeInterface
+QEventPoint
+QSinglePointEvent
+
+# Renamed or moved members (Qt 6 spelling; each has a Qt 5 form).
+# Qualified where the name exists on some other Qt 5 class: setCurrentRow() is a
+# QListWidget/QCompleter member in 5.15, not a QAbstractItemView one, so the claim
+# has to say which class it means (audit P0-19).
+Qt::AA_EnableHighDpiWindowScaler
+QString::compareIgnoringCase
+QUuid::toBytes
+QStyleHints::colorScheme
+QPalette::Accent
+QElapsedTimer::hasElapsed
+QAbstractItemView::setCurrentSection
+QAbstractItemView::setCurrentRow
+QAbstractItemView::setCurrentColumn
+QMetaType::Id
+QVariant::typeId
+QIcon::setName
+sizeIgnoringMargins
+invalidateLayout
+QPainter::useNativeRendering
+
+# Qt 6 framework-development macros cited by the framework checklist (P0-13)
+Q_CONSTINIT
+Q_IMPLICIT
+Q_DECLARE_METATYPE_EXTERN
+QT_MOVE_ASSIGNMENT_OPERATOR_
+
+# Deliberately NOT in this list, because Qt 5.15 declares them and treating them as
+# Qt 6 was a defect:
+#   QMetaProperty::readOnGadget / writeOnGadget / resetOnGadget  (qmetaobject.h —
+#     gadget properties are reachable through the meta-object in 5.15, P0-01)
+#   QML_ELEMENT, QML_NAMED_ELEMENT, QML_EXTENDED, QML_ANONYMOUS, QML_SINGLETON,
+#     QML_UNCREATABLE, QML_FOREIGN, QML_INTERFACE  (<QtQml/qqml.h> — scope bans,
+#     see qt5-scope-symbols.txt, P0-17)
+# QML_NAMED and QML_EXTENDED_TYPE, which the ban lists currently name, exist in no
+# Qt version at all, so they belong to no register: the lists must stop naming them
+# (P0-18).

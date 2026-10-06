@@ -1,0 +1,20 @@
+# Symbols Qt 5.15.2 really does ship, but which a Widgets-only project must not use.
+#
+# This register exists because "does not exist in Qt 5" and "exists but out of scope"
+# are different instructions to a model: the first tells it the code will not compile,
+# the second tells it the build would succeed and be wrong. Each line must be
+# verifiable in the kit, so a scope ban can quietly rot into a false existence claim
+# (which is exactly audit P0-12 and P0-17).
+
+# QML type-registration macros: shipped in <QtQml/qqml.h> since Qt 5.15, not Qt 6 only
+QML_ELEMENT
+QML_NAMED_ELEMENT
+QML_EXTENDED
+QML_ANONYMOUS
+QML_SINGLETON
+QML_UNCREATABLE
+QML_FOREIGN
+QML_INTERFACE
+
+# Qt Quick classes the Quick ban refers to
+QQuickPaintedItem
