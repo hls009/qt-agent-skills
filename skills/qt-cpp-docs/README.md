@@ -1,47 +1,77 @@
-# Qt C++ Documentation
+# qt-cpp-docs
 
-Generates structured Markdown reference documentation for any
-Qt/C++ source file — classes, structs, free-function headers,
-utility files, and application entry points like `main.cpp`.
+Generates standalone Markdown reference documentation for Qt 5 **Widgets** C++ sources:
+classes with `Q_OBJECT`, custom widgets, model/view classes and delegates, plain C++
+utilities, free-function headers, and entry points such as `main.cpp`.
 
-## What it does
+Validated against Qt 5.15.2. Not for Qt 6, qmake, or QML/Qt Quick.
 
-Reads C++ header and source files (along with related files such
-as `CMakeLists.txt`, `.ui` files, `.qrc` files, and `qmldir`)
-and produces developer-friendly Markdown reference docs. The
-skill selects the appropriate document structure based on the
-file type:
+## When it should activate
 
-- **Qt classes** with `Q_OBJECT`, signals/slots, and properties
-- **Plain C++ classes and structs** with no Qt macros
-- **Free-function headers** (utility APIs, helper namespaces)
-- **Application entry points** (`main.cpp`) — startup sequence,
-  Qt application setup, command-line handling, and top-level
-  object wiring
+- "document this class", "document this widget", "document my model/delegate"
+- "write docs for my C++", "C++ API docs", "document main.cpp", "document my Qt app"
+- headers or sources are supplied and reference documentation is expected
+- a whole source folder needs a `doc/` tree with an index
 
-For single files it generates one `.md` file; for folders it
-documents every meaningful `.h` and `.cpp` file and creates an
-`index.md` linking them all.
+Do not use it when the user asks for QDoc-format output; this skill produces Markdown
+reference pages, not `.qdocinc`/QDoc trees.
 
-## Requirements
+## What it produces
 
-- No external dependencies
+One `<Name>.md` per class, per significant free-function header, or `main.md` for an entry
+point, written into a `doc/` subdirectory beside the sources, plus `doc/index.md` when more
+than one file was documented. Structure is fixed: overview, dependencies, hierarchy,
+properties, enums, signals, slots and invokables, methods, event overrides, ownership,
+thread safety, forms, interactions, external communication, usage example.
 
-## Installation
+## What it corrects
 
-| Platform | Command |
-|----------|---------|
-| **Claude Code** | `/plugin marketplace add TheQtCompanyRnD/agent-skills` then `/plugin install qt-development-skills` |
-| **Codex CLI** | `npx skills add TheQtCompanyRnD/agent-skills` |
-| **Copilot** | `gh skill install TheQtCompanyRnD/agent-skills qt-cpp-docs` (preview) — or auto-discovered from `.claude/skills/` |
-| **Cursor** | Copy `SKILL.md` to `.cursor/rules/qt-cpp-docs/RULE.md` |
+Two failure modes dominate generated documentation for Qt 5 code.
+
+- **QML phrasing.** Models describe `Q_INVOKABLE` as "callable from QML", document gadget
+  properties that Qt 5's `moc` does not support, and suggest QML examples. Every one of
+  those is rewritten to the Widgets equivalent: meta-object callability, `Q_ENUM` +
+  `Q_INVOKABLE` on gadgets, and the stylesheet / `QPropertyAnimation` /
+  `QDataWidgetMapper` consumers that actually read a `Q_PROPERTY` here.
+- **Wrong-version API claims.** Prose that attributes Qt 6-only API to Qt 5
+  (`QProperty`/`QBindable` bindings, `QStyleHints::colorScheme()`, `std::optional` in a
+  `Q_PROPERTY`, `QAbstractItemView::setCurrentSection()`) is the kind of error a reader
+  cannot spot. `references/qt515-deltas.md` lists what is absent, and just as importantly
+  what *looks* Qt 6 but is available in Qt 5.15 (`QStringView`, `Qt::SkipEmptyParts`,
+  `QTimer::callOnTimeout`, `QWheelEvent::position()`) so it is not wrongly denied either.
+
+The skill also documents the Qt 5 facts that a Widgets codebase needs and generic prose
+omits: `Q_OBJECT` requiring `moc`/`AUTOMOC`, high-DPI attributes that must be set **before**
+the application object exists, `setupUi(this)` overwriting anything configured earlier,
+promoted widgets coupling a form to an include path, `QSettings` needing
+`setOrganizationName` first, and resources inside static libraries needing
+`Q_INIT_RESOURCE`.
 
 ## Files
 
-| File | Purpose |
-|------|---------|
-| `SKILL.md` | Full skill instructions (409 lines) |
+```
+SKILL.md                                entry point: guardrails, section structures
+README.md                               this file
+LICENSE.txt                             licence for this skill
+references/
+  document-structures.md              entry-point (`main.cpp`) and free-function
+                                      header structures, plus a chooser table
+  widgets-doc-recipes.md              how to document Q_OBJECT, signals/slots,
+                                      Q_PROPERTY, custom widgets, .ui forms,
+                                      models, translations, stylesheets, settings
+  qt515-deltas.md                     version-claim rules: absent API, present API,
+                                      banned QML vocabulary, annotation format
+```
 
-## License
+## External dependencies
 
-LicenseRef-Qt-Commercial OR BSD-3-Clause
+None. Optionally a Qt documentation search tool (prefer `version="5.15.18"`) to confirm an
+API before asserting it; without one, the Qt 5 installation the project builds against is the
+authority (`<qt>/include/<Module>/q*.h`), and a claim that cannot be checked is written as an
+assumption rather than as fact.
+
+## Self-containment
+
+This directory is the whole skill. Every file it uses is inside it, every path it mentions is
+relative to itself, and it does not reference or require any other skill. Copying this
+directory alone preserves full functionality.
