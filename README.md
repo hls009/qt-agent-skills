@@ -44,7 +44,7 @@ review does not raise false positives against them.
 | Skill | Type | Purpose |
 |-------|------|---------|
 | `qt-cmake-project` | Conceptual | Create and edit CMake for Qt 5 Widgets projects: executables, libraries with export macros, `.ui` forms, `.qrc` resources, translations, CTest and Qt Test targets, plugin modules; configure and generator guidance; platform notes |
-| `qt-cpp-review` | Review | Deterministic linting (80+ rules, 17 of them a Qt 6-ism category) plus six parallel read-only analysis passes over model/view, ownership, threading, API correctness, error handling and performance |
+| `qt-cpp-review` | Review | Deterministic linting (81 rule ids, 17 of them a Qt 6-ism category) plus six parallel read-only analysis passes over model/view, ownership, threading, API correctness, error handling and performance |
 | `qt-cpp-docs` | Process | Markdown reference documentation for Qt 5 Widgets C++ sources: widget and model classes, delegates, plain utilities, `main.cpp` startup, `.ui`-generated `Ui::` classes |
 | `qt-ui-design` | Conceptual | Design and audit of Qt 5 Widgets desktop UIs: layout and sizing, typography, `QPalette` and style sheets, focus and keyboard, localisation and RTL, high-DPI, custom painting and delegates |
 
@@ -136,7 +136,7 @@ copied when a skill is installed.
 ## Checks
 
 ```bash
-# linter regression: 78 universal + 7 framework rule expectations
+# linter regression: 82 universal + 7 framework expectations, 81 rule ids
 python3 tests/qt-cpp-review/run_tests.py
 
 # repo-wide conformance: Qt 5-only content, self-containment, tool-agnostic wording,

@@ -17,8 +17,8 @@ Validated against Qt 5.15.2. Not for Qt 6, qmake, or QML/Qt Quick.
 ## What it does
 
 1. **Lint** — `references/lint-scripts/qt_review_lint.py`, single pass, Python 3.6+,
-   no dependencies, 75+ rules across the categories INC, DEP, PAT, MDL, ERR, LCY, API,
-   ENM, TMO, CND, VAL, HDR, TRN and QT6. Deterministic output `FILE:LINE RULE MESSAGE`;
+   no dependencies, 81 rule ids across the categories INC, DEP, PAT, MDL, ERR, LCY, API,
+   ENM, TMO, CND, VAL, HDR, TRN and QT6 (17 of them Qt 6-isms). Deterministic output `FILE:LINE RULE MESSAGE`;
    exit 0 clean, 1 with findings. Add `--framework` for library/plugin rules, and pass
    `CMakeLists.txt`/`*.cmake` files to get the Qt 6 build-syntax checks.
 2. **Deep analysis** — six read-only agents: Model/View contracts, ownership and
