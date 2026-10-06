@@ -1,28 +1,30 @@
 # Simple project, executable target, flat layout
 
-Covers a simple Qt 6 project, producing a runnable application binary and organising a
-flat source tree.
+Covers a Qt 5 Widgets project with one target and a flat source tree, producing a
+runnable application binary.
 
 ## Simple project layout
 
-A minimal Qt Quick app needs almost no structure.
-Qt's getting-started shows a single-directory project:
+A minimal Qt 5 Widgets app needs almost no structure:
 
 ```
 MyApp/
   CMakeLists.txt
   main.cpp
-  Main.qml
+  MainWindow.h
+  MainWindow.cpp
+  MainWindow.ui          # optional; only if the form is designed in Designer
+  resources.qrc          # optional; only if there are embedded assets
 ```
 
-For projects with multiple targets (an app + a library, an app + tests, multiple QML modules),
-see `references/modular-architecture.md`.
-Default to the flat layout above until you actually need the extra structure.
+For projects with multiple targets — an app plus a library, an app plus tests, an
+app plus plugins — see `references/modular-architecture.md`. Default to the flat
+layout above until the extra structure is actually needed.
 
-## CMakeLists.txt template for a simple Qt Quick app
+## CMakeLists.txt template
 
-The minimum a fresh Qt 6 Quick app should emit. Adapt the project name, Qt version,
-and component list to the actual request, never include components the user did not ask for.
+This is the minimum a fresh Qt 5 Widgets application should emit. Adapt the project
+name and component list to the request; never add components the user did not ask for.
 
 ```cmake
 cmake_minimum_required(VERSION 3.16)
@@ -32,91 +34,114 @@ project(MyProject
     LANGUAGES CXX
 )
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 6.8 REQUIRED COMPONENTS Quick)
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTOUIC ON)
+set(CMAKE_AUTORCC ON)
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-qt_standard_project_setup(REQUIRES 6.8)
+find_package(Qt5 REQUIRED COMPONENTS Widgets)
 
-qt_add_executable(myapp main.cpp)
-
-qt_add_qml_module(myapp
-    URI MyQmlModule
-    QML_FILES
-        Main.qml
-    RESOURCE_PREFIX /qt/qml  # is the default when QTP0001 is NEW, can be left out
+add_executable(myapp
+    WIN32
+    main.cpp
+    MainWindow.h
+    MainWindow.cpp
+    MainWindow.ui
+    resources.qrc
 )
 
-target_link_libraries(myapp PRIVATE Qt6::Quick)
+target_link_libraries(myapp PRIVATE Qt5::Widgets)
 ```
 
 Notes:
 
-- `cmake_minimum_required(VERSION 3.16)` matches the version used in Qt's official
-  getting-started template. Use a higher value if the user asks.
-- `qt_standard_project_setup(REQUIRES 6.8)` enables Qt CMake policies introduced up to
-  that Qt version (set to NEW), and causes a configuration-time error if Qt is older than the
-  specified version. The argument is optional but recommended:
-  it opts you into modern defaults like QTP0001 (which sets
-  `:/qt/qml/` as the default QML resource prefix).
+- `WIN32` hides the console window on Windows. Omit it for a console application, or
+  set the property instead: `set_target_properties(myapp PROPERTIES WIN32_EXECUTABLE TRUE)`.
+  Both spellings work; do not use both.
+- `cmake_minimum_required(VERSION 3.16)` is a safe Qt 5 baseline. Use a higher value
+  only if the project needs a newer CMake feature, and say why in a comment.
 - `LANGUAGES CXX` is explicit. Without it CMake also enables C, which is harmless but
   adds compiler-detection overhead.
-- For Android projects on CMake versions earlier than 3.19, also call `qt_finalize_project()`
-  at the end of the top-level `CMakeLists.txt`. On CMake 3.19+ this happens automatically.
-- Our QML module's target name is `myapp` above just because the QML module is embedded into the
-  executable. Otherwise, it would be better to name it after its URI to be `myqmlmodule`.
-- A QML module's URI name is recommended to not clash with a target executable name because of
-  case-insensitive file systems. Giving URI `MyApp` to the QML module above would lead to such a
-  clash on Mac OS. This does not happen on Windows because executables get `.exe` suffix there.
+- There is no `qt_add_executable` in Qt 5. `add_executable` plus
+  `target_link_libraries(… Qt5::Widgets)` is the supported path. Do not substitute
+  `qt5_add_executable` either — it does not exist.
+- No `qt_standard_project_setup()`. The four `CMAKE_AUTO*` / `CMAKE_INCLUDE_CURRENT_DIR`
+  lines above are the manual equivalent of what that Qt 6 command enables, minus the
+  `GNUInstallDirs` include and the Windows runtime-output defaults, which you add only
+  when you need them.
+- `CMAKE_INCLUDE_CURRENT_DIR` is what makes generated `ui_MainWindow.h` and
+  `qrc_resources.cpp` findable without extra `target_include_directories` calls.
+- Do not generate a qmake `.pro` file, and do not emit `qmake -r` instructions.
 
-## qt_add_executable specifics
-
-Use `qt_add_executable`, not `add_executable`. It auto-links `Qt::Core`, handles
-target finalization (auto-deferred to the end of the current directory scope on CMake 3.19+),
-and on Android creates a `MODULE` library suitable for APK packaging instead of a
-regular executable. The `WIN32` and `MACOSX_BUNDLE` options are user-supplied and
-pass through to `add_executable()` for GUI / bundle apps.
-
-Both spellings work for GUI / bundle apps: passing `WIN32`/`MACOSX_BUNDLE` as positional args
-to `qt_add_executable`, or setting the `WIN32_EXECUTABLE`/`MACOSX_BUNDLE` target properties
-via `set_target_properties` after target creation.
-Qt's official getting-started uses the property form.
-
-## main.cpp template (Qt Quick application)
+## main.cpp template (Qt Widgets application)
 
 ```cpp
-#include <QGuiApplication>
-#include <QQmlApplicationEngine>
+#include <QApplication>
+
+#include "MainWindow.h"
 
 int main(int argc, char *argv[])
 {
-    QGuiApplication app(argc, argv);
+    QApplication app(argc, argv);
 
-    QQmlApplicationEngine engine;
-    engine.loadFromModule("MyQmlModule", "Main");
+    MainWindow window;
+    window.show();
 
     return app.exec();
 }
 ```
 
-`engine.loadFromModule("MyQmlModule", "Main")` (Qt 6.5+) is preferred over
-`engine.load(QUrl("qrc:/qt/qml/MyQmlModule/Main.qml"))`. It uses the QML module URI directly
-and works with both file-system imports during development and resource-system imports
-in shipped binaries.
+A Widgets application must use `QApplication`, not `QGuiApplication`: widget classes
+assert on the wrong application type, and the failure surfaces as an abort or a
+blank window rather than a clean error.
 
-Note: `QQmlApplicationEngine` does not auto-create a root window.
-The loaded type (`Main` here) must be a `Window` or `ApplicationWindow`,
-visual Qt Quick items must be placed inside one.
-Loading a plain `Item` or `Rectangle` produces a running app with no visible UI.
+Optional high-DPI setup, which Qt 6 does automatically but Qt 5 does not, must be
+applied **before** the `QApplication` is constructed:
 
-Do not generate a `qmake` `.pro` file and do not emit instructions for `qmake -r`.
-If the user asks for both build systems, pick one and ask which they prefer.
-Supporting both in one commit is almost never what they want.
+```cpp
+QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
+QCoreApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
+QApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
+```
+
+> Available since Qt 5.6 for the two attributes; since Qt 5.14 for the rounding policy
+
+There is **no** `Qt::AA_EnableHighDpiWindowScaler` in Qt 5 — that attribute is a Qt 6
+name and will not compile here. The equivalent environment variables
+(`QT_ENABLE_HIGHDPI_SCALING`, `QT_SCALE_FACTOR_ROUNDING_POLICY`,
+`QT_SCALE_FACTOR`, `QT_AUTO_SCREEN_SCALE_FACTOR`) work without code, which is usually
+the better choice for a shipped application: they can be tuned per deployment without a
+rebuild.
+
+`Qt::AA_UseHighDpiPixmaps` is what makes icons drawn from `QIcon` stay crisp on a
+scaled display; enabling scaling without it is a common half-fix.
+
+## Using a .ui form
+
+With `CMAKE_AUTOUIC ON`, listing `MainWindow.ui` in the sources is enough. The
+generated header is named after the file:
+
+```cpp
+// MainWindow.cpp
+#include "ui_MainWindow.h"
+
+MainWindow::MainWindow(QWidget *parent)
+    : QMainWindow(parent)
+    , ui(new Ui::MainWindow)
+{
+    ui->setupUi(this);
+}
+```
+
+See `references/ui-files-and-autouic.md` for the `Ui::` namespace, ownership of the
+generated class and promoted widgets.
 
 ## When to grow the structure
 
-When a project grows past a single target - adding a library, a plugin, tests,
-or multiple QML modules — that's when subdirectories earn their keep.
-See `references/modular-architecture.md` for the `add_subdirectory` patterns
-and `references/qml-integration.md` for splitting QML modules into their own directories.
+When the project gains a second target — a library, a plugin, tests, or a second
+executable — that is when subdirectories earn their keep. See
+`references/modular-architecture.md` for the `add_subdirectory()` patterns, target
+visibility, export macros and test wiring.

@@ -1,271 +1,238 @@
 # Common LLM mistakes — pre-flight checklist
 
 This is the bias-correction layer. Mainstream LLMs emit the mistakes below by default when
-generating Qt CMake. Before returning the final output, check the draft against every item here.
+generating Qt 5 CMake, because their training data is dominated by Qt 6 documentation.
+Before returning the final output, check the draft against every item here.
 
-Each entry has the wrong pattern, the right pattern, and the underlying reason.
-Knowing the reason matters. It lets the agent generalise to cases this list does not enumerate.
+Each entry has the wrong pattern, the right pattern, and the reason. The reason matters: it
+lets you generalise to cases this list does not enumerate.
 
-## 1. `add_executable` instead of `qt_add_executable`
+## 1. Qt 6 CMake commands in a Qt 5 project
+
+```cmake
+# WRONG
+find_package(Qt6 REQUIRED COMPONENTS Widgets)
+qt_standard_project_setup(REQUIRES 6.8)
+qt_add_executable(myapp main.cpp)
+
+# RIGHT
+find_package(Qt5 REQUIRED COMPONENTS Widgets)
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTOUIC ON)
+set(CMAKE_AUTORCC ON)
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+add_executable(myapp WIN32 main.cpp)
+target_link_libraries(myapp PRIVATE Qt5::Widgets)
+```
+
+**Why:** `qt_standard_project_setup`, `qt_add_executable`, `qt_add_library`,
+`qt_add_qml_module`, `qt_add_translations`, `qt_add_shaders`, `qt_add_plugin` and `qt_policy`
+are Qt 6 additions. In Qt 5 the failure is a hard `Unknown CMake command` at configure time,
+and the message does not hint at a Qt-version problem, so the user burns time on the wrong
+file. The full list with the Qt 5 replacement for each entry is in
+`references/qt515-deltas.md`.
+
+## 2. `Qt6::` link targets, or a `NAMES Qt6 Qt5` probe
+
+```cmake
+# WRONG
+target_link_libraries(myapp PRIVATE Qt6::Widgets)
+find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
+target_link_libraries(myapp PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
+
+# RIGHT
+target_link_libraries(myapp PRIVATE Qt5::Widgets)
+```
+
+**Why:** The dual-major probe is legacy scaffolding for a project that genuinely supports both
+Qt 5 and Qt 6. In a Qt 5-only project it buys nothing and costs clarity: every later reader
+has to reason about both branches, and `Qt${QT_VERSION_MAJOR}::` hides which module names
+actually get required. Do not *add* such branches; do not *delete* existing ones unless asked
+(removing them changes how the project configures).
+
+## 3. Version-pinning `find_package(Qt5 …)` to a patch release
+
+```cmake
+# WRONG
+find_package(Qt5 5.15.2 REQUIRED COMPONENTS Widgets)
+
+# RIGHT
+find_package(Qt5 REQUIRED COMPONENTS Widgets)
+```
+
+**Why:** `5.15.2` is not an API boundary — every 5.15.x has the same API — so pinning it
+converts a working build into a "Qt 5.15.2 not found" failure on a colleague's 5.15.14.
+A version argument belongs in the `find_package` only when a documented *component* was added
+in a known version, and then the component itself expresses it (`COMPONENTS Svg`). If a real
+minimum version is required, say what for, and check it explicitly:
+
+```cmake
+find_package(Qt5 REQUIRED COMPONENTS Widgets)
+if(Qt5_VERSION VERSION_LESS 5.12)
+    message(FATAL_ERROR "Qt >= 5.12 required for Qt::UniqueConnection usage")
+endif()
+```
+
+## 4. `qt5_use_modules`
+
+```cmake
+# WRONG
+qt5_use_modules(myapp Widgets Network)
+
+# RIGHT
+target_link_libraries(myapp PRIVATE Qt5::Widgets Qt5::Network)
+```
+
+**Why:** Deprecated at the source level — `Qt5CoreMacros.cmake` opens the macro with
+`_qt5_warn_deprecated("qt5_use_modules")`. It predates imported targets, takes module names
+rather than targets, and cannot express `PUBLIC`/`PRIVATE` visibility, so it silently loses
+usage requirements that consumers need.
+
+## 5. `qt5_import_plugins` as the answer to static plugin linking
+
+```cmake
+# WRONG
+qt5_import_plugins(myapp INCLUDE PLUGINS myapp_filter_dark)   # does nothing here
+
+# RIGHT (C++ side, once)
+Q_IMPORT_PLUGIN(DarkFilter)
+# plus: target_link_libraries(myapp PRIVATE myapp::filter_dark)
+```
+
+**Why:** The macro only appends `QT_PLUGINS*` **target properties**. Nothing in Qt 5's CMake
+files reads them — the machinery that consumed them was qmake's. `grep QT_PLUGINS
+<qt>/lib/cmake` returns only the macro itself. Static plugin registration in CMake is
+`Q_IMPORT_PLUGIN` in a translation unit plus a real link against the plugin library.
+
+## 6. `qt5_add_resources` with Qt 6 arguments
+
+```cmake
+# WRONG — Qt 6 form; PREFIX/FILES are not Qt 5 options
+qt_add_resources(myapp "myapp_data" PREFIX "/myapp" FILES images/bg.png)
+
+# RIGHT — Qt 5: the .qrc holds the prefix and the file list
+# resources.qrc:  <RCC><qresource prefix="/myapp"><file>images/bg.png</file></qresource></RCC>
+add_executable(myapp WIN32 main.cpp resources.qrc)      # AUTORCC handles it
+# or explicitly:
+qt5_add_resources(QRC_SOURCES resources.qrc)
+target_sources(myapp PRIVATE ${QRC_SOURCES})
+```
+
+**Why:** The Qt 5 macro's parsed arguments are the output variable, the `.qrc` files, and
+`OPTIONS`. `PREFIX`, `BASE` and `FILES` land in the unparsed list and are treated as further
+input files, giving `Cannot find source file: PREFIX` — which reads like a missing asset, not
+like a wrong API.
+
+## 7. Both `AUTORCC` and `qt5_add_resources` for the same `.qrc`
+
+**Why:** `qt5_add_resources` sets `SKIP_AUTORCC` on the file it processes. Listing the `.qrc`
+in the target *and* wrapping it by hand means one path is disabled by the other, and getting
+it half-right produces duplicate `qInitResources_…` symbols at link time or a resource that is
+silently absent at runtime. Pick one mechanism per project.
+
+## 8. Setting `CMAKE_AUTOMOC` after the targets are created
 
 ```cmake
 # WRONG
 add_executable(myapp main.cpp)
+set(CMAKE_AUTOMOC ON)          # too late for myapp
 
 # RIGHT
-qt_add_executable(myapp main.cpp)
-```
-
-**Why:** `qt_add_executable` auto-links `Qt::Core`, handles target finalization,
-and on Android creates a `MODULE` library suitable for APK packaging.
-The `WIN32` and `MACOSX_BUNDLE` options are user-supplied opt-ins, not automatic.
-`add_executable` skips all of this.
-
-## 2. `qt5_*` macros in a Qt 6 project
-
-```cmake
-# WRONG
-qt5_add_resources(myapp_RESOURCES resources.qrc)
-qt5_wrap_ui(myapp_UIS mainwindow.ui)
-
-# RIGHT
-qt_add_resources(myapp "myapp_data" PREFIX "/" FILES …)
-# UI files are picked up by AUTOUIC; no manual wrap call needed.
-```
-
-**Why:** Qt's compatibility guide recommends the versionless `qt_*` commands for new code.
-`qt5_*` macros are intended for projects that need to support Qt 5 versions older than 5.15;
-they use the legacy variable-list API instead of the target-based CMake API.
-
-## 3. Missing `qt_standard_project_setup()`
-
-```cmake
-# WRONG — manually enabling what the helper does (and missing what it doesn't)
-find_package(Qt6 6.8 REQUIRED COMPONENTS Quick)
 set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTOUIC ON)
-qt_add_executable(myapp main.cpp)
-
-# RIGHT
-find_package(Qt6 6.8 REQUIRED COMPONENTS Quick)
-qt_standard_project_setup(REQUIRES 6.8)
-qt_add_executable(myapp main.cpp)
+add_executable(myapp main.cpp)
 ```
 
-**Why:** `qt_standard_project_setup()` enables `CMAKE_AUTOMOC` and `CMAKE_AUTOUIC`,
-includes `GNUInstallDirs`, configures Windows runtime output and RPATH defaults,
-and (with `REQUIRES`) opts you into modern Qt CMake policies.
-Hand-rolling `set(CMAKE_AUTOMOC ON)` etc. misses the policy opt-in and the install-layout defaults.
-Note: it does *not* set `AUTORCC` or the C++ standard, those still need explicit `set()` calls.
+**Why:** `AUTOMOC` is read when the target is created and copied into the target's
+`AUTOMOC` property. A `set()` afterwards changes only targets declared later, which usually
+means the first library silently loses moc'ing and fails with `undefined reference to
+vtable for MyClass` — an error message that points at C++, not at CMake ordering. If you need
+per-target control, use `set_target_properties(t PROPERTIES AUTOMOC ON)` instead of the global.
 
-## 4. Hand-written `.qrc` for QML files
+## 9. Listing generated files as sources
 
 ```cmake
 # WRONG
-qt_add_executable(myapp main.cpp)
-qt_add_resources(myapp "qml" PREFIX "/" FILES
-    Main.qml
-    AboutDialog.qml
-)
+add_executable(myapp main.cpp moc_MainWindow.cpp ui_MainWindow.h qrc_resources.cpp)
 
 # RIGHT
-qt_add_executable(myapp main.cpp)
-qt_add_qml_module(myapp
-    URI MyApp
-    QML_FILES
-        Main.qml
-        AboutDialog.qml
-)
+add_executable(myapp WIN32 main.cpp MainWindow.cpp MainWindow.h MainWindow.ui resources.qrc)
 ```
 
-**Why:** QML files placed via `qt_add_resources` are invisible to the QML compiler,
-the type registrar, and the QML language server.
-They will load at runtime but lose static analysis, ahead-of-time compilation, and IDE autocomplete.
+**Why:** `moc_*`, `ui_*` and `qrc_*` are produced during the build by AUTOMOC / AUTOUIC /
+AUTORCC. Listing them yields `Cannot find source file` at configure time, or duplicate
+symbols if the generator also runs.
 
-## 5. `find_package(Qt6 REQUIRED)` with no minimum version
+## 10. Forgetting `CMAKE_INCLUDE_CURRENT_DIR` with AUTOUIC
+
+**Why:** `ui_MainWindow.h` is generated into the build directory. Without the include-path
+addition, `#include "ui_MainWindow.h"` fails, and the tempting "fix" — adding the binary dir
+as a hard-coded absolute include path, or copying generated files into the source tree — is
+worse than the original omission.
+
+## 11. Wrong `target_link_libraries` visibility
+
+```cmake
+# WRONG — exposes Widgets to every consumer of myapp_core
+target_link_libraries(myapp_core PUBLIC Qt5::Widgets)
+
+# RIGHT — Widgets is an implementation detail of myapp_core
+target_link_libraries(myapp_core PRIVATE Qt5::Widgets)
+```
+
+**Why:** `PUBLIC` propagates to consumers. Use it only when the dependency appears in the
+target's *public headers*. `INTERFACE` is consumer-only: for header-only and alias targets in
+`target_link_libraries`, and for include directories a library does not itself need.
+
+## 12. Resources in a static library without `Q_INIT_RESOURCE`
+
+**Why:** Nothing references the generated `qInitResources_<name>()` translation unit, the
+linker drops it, and every `:/…` lookup in that library returns "not found" at runtime with a
+clean build. `Q_INIT_RESOURCE(icons)` (matching `icons.qrc`) at startup is the fix. The
+failure is runtime-only, which is why it survives code review.
+
+## 13. A QML module target, or any QML at all
 
 ```cmake
 # WRONG
-find_package(Qt6 REQUIRED COMPONENTS Quick)
-
-# RIGHT
-find_package(Qt6 6.8 REQUIRED COMPONENTS Quick)
+qt_add_qml_module(myapp URI MyApp QML_FILES Main.qml)
+target_link_libraries(myapp PRIVATE Qt5::Quick)
 ```
 
-**Why:** Many `qt_*` commands have evolved between minor 6.x releases
-(`qt_add_qml_module` in particular). Without a minimum, the project may build on the
-developer machine and fail in CI on an older Qt. The `REQUIRES` argument to
-`qt_standard_project_setup()` and the version pin to `find_package` should agree.
+**Why:** Both halves are unavailable-by-design here: the command is Qt 6, and this skill set
+produces Qt Widgets only. If the project you are handed already contains QML, leave it as it
+is — read it, do not rewrite or "migrate" it, and do not emit QML in your own output.
 
-## 6. `QT += quick` or other `.pro` syntax
+## 14. qmake leftovers
 
 ```
-# WRONG (qmake leftover)
-QT += quick widgets
-CONFIG += c++17
-SOURCES += main.cpp
+# WRONG inside CMakeLists.txt
+QT += widgets
+CONFIG += c++20
+FORMS += mainwindow.ui
 RESOURCES += assets.qrc
 ```
 
-**Why:** This is qmake `.pro` syntax, not CMake syntax. CMake fails to parse it.
-There is no `+=` operator, and bare names like `QT` start a function-call parse
-that expects `(` next. The configure step errors out at the `+=` token; nothing is built.
-Never emit `.pro` syntax inside a `CMakeLists.txt`.
+**Why:** `.pro` syntax. CMake parses `QT` as a command name and errors at `+=`; nothing is
+configured. Do not generate a `.pro` "as well" — if the user wants both build systems, ask
+which one to write now.
 
-## 7. Mismatched module URI and directory
+## 15. Telling the user to run `qt-cmake`
 
-```
-# WRONG
-qml/components/MyButton.qml          # directory: lowercase "components"
-qt_add_qml_module(myqmlmodule_components
-    URI MyQmlModule.Components             # URI: uppercase "Components"
-)
+**Why:** `qt-cmake` is not present in the Windows Qt 5 MSVC kit this skill was validated
+against, and where a wrapper exists its behaviour is not uniform across Qt 5 releases. The
+supported invocation is plain `cmake` with `-DCMAKE_PREFIX_PATH=<qt>` or
+`-DQt5_DIR=<qt>/lib/cmake/Qt5` (see `references/configure.md`). `-DQTDIR=…` does nothing for
+CMake.
 
-# RIGHT
-qml/MyQmlModule/Components/MyButton.qml
-qt_add_qml_module(myqmlmodule_components
-    URI MyQmlModule.Components
-)
-```
+## 16. Inventing option or target names
 
-**Why:** The QML engine resolves `import MyQmlModule.Components` by appending the dotted path
-to its import path. If the directory on disk doesn't match, `qt_add_qml_module()` may
-fail to import at runtime if the import path setup doesn't compensate.
-Using the `TARGET <cmake-target>` version of `IMPORTS` or `DEPENDENCIES` of this command
-can eliminate this. So the ultimate solution to not having to care about folder structure is
-importing MyQmlModule.Components from cmake via the `TARGET` import format:
+Plausible names that do not exist for `qt5_add_resources` / `qt5_wrap_ui` /
+`qt5_add_translation`: `PREFIX`, `BASE`, `FILES`, `QRC_PREFIX`, `NAME`, `NO_OPTIONS`,
+`RESOURCE_NAME`, `OUTPUT_DIR`, `SOURCES`, `QML_FILES`.
+Plausible target names that do not exist unless verified: `Qt5::CanvasPainter`,
+`Qt5::QuickControls2` (a Qt 6-flavoured habit), `Qt5::WidgetsExtras`, `Qt::Widgets`.
 
-```cmake
-qt_add_qml_module(myqmlmodule  # or myapp if it is an executable
-    URI MyQmlModule
-    IMPORTS TARGET myqmlmodule_components
-)
-```
-
-## 8. Lowercase QML file names
-
-```
-# WRONG
-qml/MyQmlModule/mybutton.qml
-
-# RIGHT
-qml/MyQmlModule/MyButton.qml
-```
-
-**Why:** QML treats UpperCamelCase file names as types. A file named `mybutton.qml` is
-not usable as `MyButton { … }` in another QML file, only via `Qt.createComponent("mybutton.qml")`.
-
-## 9. Manually listing AUTOMOC outputs
-
-```cmake
-# WRONG
-qt_add_executable(myapp
-    main.cpp
-    moc_mainwindow.cpp        # generated — never list manually
-    qrc_resources.cpp         # generated — never list manually
-)
-
-# RIGHT
-qt_add_executable(myapp
-    main.cpp
-    mainwindow.cpp
-    mainwindow.h
-)
-```
-
-**Why:** `moc_*.cpp`, `ui_*.h`, and `qrc_*.cpp` are produced by AUTOMOC/AUTOUIC/AUTORCC
-during the build. Listing them as source files causes "file not found" at configure time
-or duplicate symbol errors at link time.
-
-## 10. Wrong `target_link_libraries` visibility
-
-```cmake
-# WRONG — exposes Quick to consumers of myapp_core unnecessarily
-target_link_libraries(myapp_core PUBLIC Qt6::Quick)
-
-# RIGHT — Quick is an implementation detail of myapp_core
-target_link_libraries(myapp_core PRIVATE Qt6::Quick)
-```
-
-**Why:** `PUBLIC` propagates the dependency to every consumer of the target.
-Use `PUBLIC` only when the dependency appears in the target's *public headers*.
-Otherwise use `PRIVATE`. `INTERFACE` is consumer-only — for `target_link_libraries`,
-mainly header-only or alias targets; for `target_include_directories`,
-also normal on compiled libraries whose include paths are consumer-only (see SKILL.md Rule 6).
-
-## 11. `RESOURCE_PREFIX /` in a QML module
-
-```cmake
-# WRONG
-qt_add_qml_module(myapp
-    URI MyQmlModule
-    RESOURCE_PREFIX /              # collides with non-QML resources
-    QML_FILES Main.qml
-)
-
-# RIGHT
-qt_add_qml_module(myapp
-    URI MyQmlModule
-    RESOURCE_PREFIX /qt/qml        # Qt 6 default, leave it
-    QML_FILES Main.qml
-)
-```
-
-**Why:** When the `QTP0001` policy is NEW (e.g. via `qt_standard_project_setup(REQUIRES 6.8)`),
-`/qt/qml` is the default prefix where the QML engine looks when importing a module by URI.
-Overriding it to `/` collides with hand-added `qt_add_resources` calls and
-makes `engine.loadFromModule(...)` fail. Without QTP0001 NEW, the default stays `/`.
-
-## 12. Inventing `qt_add_qml_module` argument names
-
-The actual arguments are listed in `qml-integration.md`.
-The following names *do not exist* despite being plausible:
-
-- `SOURCE_FILES` (use `QML_FILES` for QML, `SOURCES` for C++)
-- `QML_SOURCES` (use `QML_FILES`)
-- `QRC_PREFIX` (use `RESOURCE_PREFIX`)
-- `MODULE_NAME` (use `URI`)
-- `MODULE_VERSION` (use `VERSION`)
-- `IMAGES` / `ASSETS` (use `RESOURCES`)
-
-If unsure of a name, query the Qt docs MCP tool or
-fetch the official command reference page rather than guessing.
-
-## 13. `qt_add_plugin` for QML extension plugins
-
-```cmake
-# WRONG — bypasses QML module registration
-qt_add_plugin(myapp_qml_plugin
-    CLASS_NAME MyAppPlugin
-    plugin.cpp
-)
-
-# RIGHT — plugin is part of the QML module
-qt_add_qml_module(myapp_quick
-    URI MyApp.Quick
-    PLUGIN_TARGET myapp_quick_plugin
-    SOURCES
-        myextension.cpp
-        myextension.h
-)
-```
-
-**Why:** A QML extension plugin must be wired into the QML module's `qmldir` so the engine
-loads it on `import`. Only `qt_add_qml_module(... PLUGIN_TARGET ...)` does that wiring.
-
-**Note on `PLUGIN_TARGET`:** the argument is *optional*. If omitted, `qt_add_qml_module`
-auto-generates a plugin target named `<backing-target>plugin`
-(e.g. `myapp_quick` → `myapp_quickplugin`).
-Specify `PLUGIN_TARGET` only to customize the name or when using `NO_CREATE_PLUGIN_TARGET`.
-The auto-generated plugin is almost always adequate unless adding image providers.
-Do not declare `PLUGIN_TARGET` for executable-backed (application-owned) modules,
-there is no separate plugin in that case.
-
-## 14. Generating a `.pro` file alongside `CMakeLists.txt`
-
-If the user asks to "support both build systems," **ask which one they want**
-before generating either. Maintaining a `.pro` and a `CMakeLists.txt` for the same project
-is almost always a mistake. The two drift apart, builds diverge between contributors, and the
-QML compiler / language server only fully work with the CMake build.
-
-The exception is a Qt-internal module where dual-builds can be supported for legacy reasons.
+**Why:** The Qt 5 macro signatures are short and are worth reading in the installed file
+rather than recalling: `<qt>/lib/cmake/Qt5Core/Qt5CoreMacros.cmake`,
+`Qt5Widgets/Qt5WidgetsMacros.cmake`, `Qt5LinguistTools/Qt5LinguistToolsMacros.cmake`.
+Existence of a module is settled by the presence of `<qt>/lib/cmake/Qt5<Module>/`.

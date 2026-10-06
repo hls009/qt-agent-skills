@@ -1,65 +1,56 @@
-# Qt CMake Project Skill
+# qt-cmake-project
 
-Helps AI coding tools set up and evolve Qt 6 projects built with
-CMake. Corrects systematic LLM biases — qmake leftovers, the
-legacy `qt5_*` macros, raw `.qrc` files for QML — and produces
-project layouts that align with the modern Qt 6 CMake API.
+CMake project work for Qt 5 **Widgets** applications: creating and editing
+`CMakeLists.txt`, adding sources, `.ui` forms, resources and translations, and defining
+targets (application, static/shared library, test, plugin module).
 
-## What it does
+Validated against Qt 5.15.2. Not for Qt 6, qmake, or QML/Qt Quick.
 
-Activates whenever a Qt 6 project's `CMakeLists.txt` is being
-written or edited, or when the user asks to:
+## When it should activate
 
-- bootstrap a fresh Qt project with the right top-level layout
-- add a runnable application binary (`qt_add_executable`)
-- add a `add_subdirectory()` subproject
-- create a Qt library (`qt_add_library`)
-- create or grow a QML module (`qt_add_qml_module`)
-- add a Qt plugin (`qt_add_plugin`) and wire it into the project
-- add a `.qml` file or a reusable QML UI control to an existing
-  module
-- organise sources into folders (`src/`, `qml/`, `resources/`,
-  `cmake/`)
-- add static resources — images, icons, fonts, translations
+- A `CMakeLists.txt` in a Qt 5 project is being written, extended or corrected.
+- A Qt module needs to be found or linked (`find_package(Qt5 …)`, `Qt5::Widgets`).
+- Sources, `.ui` forms, `.qrc` assets, fonts, icons or `.ts`/`.qm` translations are added.
+- A new target is defined: executable, library, test suite, plugin.
+- Configuration or build failure that traces back to CMake (`Unknown CMake command`,
+  `By not providing "FindQt5.cmake" …`, `Cannot find source file`, vtable link errors).
+- A qmake `.pro` project is being moved onto CMake.
 
-The skill is opinionated: it always prefers the modern Qt 6
-`qt_*` commands and `qt_standard_project_setup()`, never the
-qmake `.pro` workflow and never `qt5_*` macros.
+## What it corrects
 
-## Documentation lookup
-
-When the agent is unsure of a CMake command's exact signature, the
-skill instructs it to query a Qt docs MCP tool (e.g. `qt-docs`) if
-available, falling back to a web fetch of
-[`doc.qt.io/qt-6/cmake-manual.html`](https://doc.qt.io/qt-6/cmake-manual.html)
-and per-command reference pages.
-
-## Requirements
-
-- Qt 6.8 or newer (the skill's defaults assume API 6.8, however this is a soft requirement)
-- No external script dependencies — the skill is purely prompt-based
-
-## Installation
-
-| Platform | Command |
-|----------|---------|
-| **Claude Code** | `/plugin marketplace add TheQtCompanyRnD/agent-skills` then `/plugin install qt-development-skills` |
-| **Codex CLI** | `npx skills add TheQtCompanyRnD/agent-skills` |
-| **GitHub Copilot** | `gh skill install TheQtCompanyRnD/agent-skills qt-cmake-project` (preview) — or auto-discovered from `.claude/skills/` |
-| **Gemini CLI** | `gemini extensions install https://github.com/TheQtCompanyRnD/agent-skills` |
+Models trained mostly on Qt 6 documentation emit Qt 6 CMake commands by default. In Qt 5
+those are undefined, so the project does not configure, and the error message
+(`Unknown CMake command "qt_add_executable"`) does not mention Qt at all. The skill also
+corrects the mistakes specific to Qt 5: `qt5_add_resources` is not the Qt 6 file-list form,
+`AUTOMOC`/`AUTOUIC`/`AUTORCC` must be enabled by hand, `qt5_use_modules` and
+`qt5_import_plugins` are traps, and a shared library needs CMake's `GenerateExportHeader`
+because Qt 5 offers no export-macro generator.
 
 ## Files
 
-| File | Purpose |
-|------|---------|
-| `SKILL.md` | Entry point with hard rules and decision tree |
-| `references/simple-project.md` | Simple project, executable, flat structure |
-| `references/modular-architecture.md` | Subprojects, libraries, plugins |
-| `references/qml-integration.md` | QML modules, files, reusable controls |
-| `references/resources.md` | Images, icons, fonts, translations |
-| `references/common-mistakes.md` | LLM bias correction checklist |
-| `references/configure.md` | Instructions on trying out the project |
+```
+SKILL.md                            entry point: guardrails, hard rules, workflow
+references/
+  simple-project.md               single target, flat layout, main.cpp shape
+  ui-files-and-autouic.md         .ui forms, AUTOUIC, Ui::* class, promoted widgets
+  resources.md                    .qrc, AUTORCC, qt5_add_resources, fonts, translations
+  modular-architecture.md         subdirectories, libraries, export macros, CTest/Qt Test, plugins
+  configure.md                    locating Qt, configuring, generators, error-message triage
+  platform-notes.md               Windows/MSVC, Linux, macOS specifics
+  common-mistakes.md              pre-flight checklist; read before every final output
+  qt515-deltas.md                 Qt 6 CMake APIs that must never appear, and the Qt 5 form
+```
 
-## License
+## External dependencies
 
-LicenseRef-Qt-Commercial OR BSD-3-Clause
+None required. The skill is more useful with a Qt documentation search tool available
+(prefer `version="5.15.18"`, which is the Qt 5 LTS branch of the hosted documentation), and
+it can verify everything it claims against a local Qt 5 installation
+(`<qt>/lib/cmake/Qt5<Module>/`, `<qt>/include/<Module>/`). If neither is reachable, the skill
+marks its assumptions instead of asserting them.
+
+## Self-containment
+
+This directory is the whole skill. Every file it uses is inside it, every path it mentions is
+relative to itself, and it does not reference or require any other skill. Copying this
+directory alone preserves full functionality.

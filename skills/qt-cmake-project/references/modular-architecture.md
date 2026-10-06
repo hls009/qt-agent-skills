@@ -1,268 +1,178 @@
-# Subdirectories, Qt libraries, plugins
+# Modular architecture: multiple targets, libraries, tests, plugins
 
-Covers a complex project across `add_subdirectory()` boundaries, with special or multiple targets,
-including libraries, Qt plugins.
+Covers any project with `add_subdirectory()`, more than one target, a static or shared
+library, a test suite, or a plugin module — in Qt 5 with Widgets.
 
-## When to add a subdirectory
+## Layout that earns its keep
 
-Use `add_subdirectory()` when one or more of these is true:
-
-- The directory produces its own target (executable, library, plugin, QML module).
-- The directory has a meaningfully different dependency set from its parent
-  (e.g. only the GUI subdir needs `Qt6::Quick`).
-- The directory is reusable across projects.
-
-Do **not** add a subdirectory just to group source files — for that,
-use folders and `target_sources(... PRIVATE …)` from the parent's `CMakeLists.txt`.
-
-## Subdirectory pattern
-
-Top-level `CMakeLists.txt` after the project setup block:
-
-```cmake
-add_subdirectory(src/core)          # internal library
-add_subdirectory(src/widgets)       # Qt library exposing widgets
-add_subdirectory(src/app)           # qt_add_executable lives here
-add_subdirectory(src/plugins/csvio) # Qt plugin
+```
+MyApp/
+  CMakeLists.txt                  # project(), options, find_package(Qt5), add_subdirectory()
+  cmake/                          # only genuinely reused helper modules
+  src/
+    core/        CMakeLists.txt   # myapp_core  (no widgets, no UI)
+    ui/          CMakeLists.txt   # myapp_ui    (depends on core)
+    app/         CMakeLists.txt   # myapp       (executable, depends on ui + core)
+    plugins/     CMakeLists.txt   # MODULE targets
+  tests/         CMakeLists.txt   # CTest + Qt Test targets
+  i18n/          *.ts
 ```
 
-Each subdirectory's `CMakeLists.txt` declares its own target and linkages. The parent never sets
-sources for a child target — that is the child's responsibility. This keeps targets self-contained
-and lets you move directories without rewriting parent files.
+Rules:
 
-## Qt library (`qt_add_library`)
+- The top-level file holds the shared decisions (`CMAKE_CXX_STANDARD`, the `AUTOMOC` /
+  `AUTOUIC` / `AUTORCC` settings, `find_package(Qt5 …)`, options). Subdirectories consume
+  them; they do not re-`find_package` the same components.
+- One target per directory is the readable default. Two targets in one `CMakeLists.txt`
+  is fine when they are the same code compiled twice (static + object); it is confusing
+  when they are unrelated.
+- Dependency direction is acyclic and outward: `core` never links `ui`, and no library
+  links the executable.
+- `enable_testing()` belongs in the top-level file, before `add_subdirectory(tests)`.
 
-Use `qt_add_library` for libraries in a Qt project. It is a wrapper around CMake's
-`add_library()` that handles target creation and finalization. Tooling like AUTOMOC is set by
-`qt_standard_project_setup()` at the project level, not by `qt_add_library` itself.
-
-`src/core/CMakeLists.txt`:
+## Library targets
 
 ```cmake
-qt_add_library(myapp_core STATIC
-    notebook.cpp
-    notebook.h
-    notestore.cpp
-    notestore.h
-)
-
+add_library(myapp_core STATIC)
+target_sources(myapp_core PRIVATE Model.cpp Controller.cpp)
+target_link_libraries(myapp_core PUBLIC Qt5::Core)
 target_include_directories(myapp_core
-    PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-    PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
-target_link_libraries(myapp_core
-    PUBLIC
-        Qt6::Core         # exposed in public headers
-    PRIVATE
-        Qt6::Sql          # used only in .cpp
-)
+    PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
+add_library(myapp::core ALIAS myapp_core)
 ```
 
-Choosing the library kind:
+- `add_library` / `add_executable`, not `qt_add_library` — that command is Qt 6 only.
+- Name the library target lowercase with the project prefix (`myapp_core`); expose an
+  `ALIAS` (`myapp::core`) for consumers so a `find_package`-provided target and an
+  in-tree one are spelled the same.
+- `$<BUILD_INTERFACE:…>` on include directories keeps build-tree paths out of any export
+  set. `$<INSTALL_INTERFACE:…>` is the install-tree counterpart.
+- `SHARED` versus `STATIC`: a Widgets application usually wants static for its own
+  internals unless there is a real reason for a DLL boundary (plugin loading, build time,
+  separate release cadence). Shared libraries additionally require export macros — see
+  below — which is the cost people forget when they pick `SHARED` casually.
 
-| Kind | When to use |
-|------|-------------|
-| `STATIC` | Internal libraries linked into one executable. |
-| `SHARED` | Library shipped separately or loaded by multiple binaries. Requires symbol export annotations (`Q_DECL_EXPORT`/`Q_DECL_IMPORT`). |
-| `OBJECT` | Code reused into multiple final libraries without producing an `.a`/`.lib` of its own. Niche. |
-| `INTERFACE` | Header-only libraries. No source files. |
+## Export macros for a shared library
 
-`MODULE` exists but is for plugins — use `qt_add_plugin` instead.
-
-If the kind is omitted, the library type follows Qt's own build:
-static Qt → static library, shared Qt → shared library. (Qt 6.7+ optionally honours
-`BUILD_SHARED_LIBS` when policy `QTP0003` is set to NEW.) For internal components,
-prefer specifying `STATIC` explicitly and documenting the choice.
-
-### Shared library
-
-A `SHARED` library shipped to other projects (or installed) needs three additions beyond the
-static pattern:
-- a namespaced alias target,
-- generator expressions for include paths,
-- and soname versioning.
+Qt 5 provides no target-level export-macro generator in its own CMake files; use CMake's
+`GenerateExportHeader` module:
 
 ```cmake
-qt_add_library(myapp_core SHARED
-    src/notebook.cpp
-    src/notestore.cpp
-)
-
-# Namespaced alias — consumers link MyApp::core, not bare myapp_core.
-add_library(MyApp::core ALIAS myapp_core)
-
-# Generator expressions: build-tree path during build,
-# install path for installed-package consumers.
-target_include_directories(myapp_core
-    PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include>
-)
-
-target_link_libraries(myapp_core
-    PUBLIC
-        Qt6::Core
-)
-
-# soname versioning — prevents ABI-mismatch crashes when multiple
-# versions of this library exist on the system.
-set_target_properties(myapp_core PROPERTIES
-    VERSION   ${PROJECT_VERSION}
-    SOVERSION ${PROJECT_VERSION_MAJOR}
-)
+include(GenerateExportHeader)
+add_library(myapp_ui SHARED)
+generate_export_header(myapp_ui
+    BASE_NAME MYAPP_UI
+    EXPORT_MACRO_NAME MYAPP_UI_EXPORT
+    STATIC_LIBRARY MYAPP_UI_STATIC)
+target_sources(myapp_ui EXPORT_HEADER PRIVATE MainWindow.cpp)
 ```
 
-Symbol export annotations (`Q_DECL_EXPORT` / `Q_DECL_IMPORT`) are still required for the C++ side.
-See the kinds table above.
-
-### Public-header convention
-
-For libraries consumed by other targets, expose headers via a versioned include path:
-
-```
-src/core/
-  CMakeLists.txt
-  include/
-    core/
-      notebook.h        # consumers write: #include <core/notebook.h>
-  notebook.cpp
-  notebook_p.h          # private impl detail — not in include/
-```
-
-`PUBLIC` `target_include_directories` points at `include/`. Private `_p.h` headers stay alongside
-the `.cpp` and are not listed publicly.
-
-### Linking the library from the executable
-
-`src/app/CMakeLists.txt`:
-
-```cmake
-qt_add_executable(myapp main.cpp)
-
-target_link_libraries(myapp PRIVATE
-    Qt6::Quick
-    myapp_core            # the library target name from the other subdir
-)
-```
-
-CMake resolves `myapp_core` by target name regardless of where it was declared,
-as long as the subdirectory containing it has been added.
-
-## Qt plugin (`qt_add_plugin`)
-
-Plugins are dynamically loaded modules — most commonly Qt imageformats, sqldrivers,
-qmltooling extensions, or application-specific extension points.
-Use `qt_add_plugin` for any of these in Qt 6.
-
-`src/plugins/csvio/CMakeLists.txt`:
-
-Note: `CLASS_NAME` defaults to the target name. Specify it explicitly only when the C++ class name
-doesn't match the target name (as below — target `csvio_plugin` vs class `CsvIoPlugin`).
-
-```cmake
-qt_add_plugin(csvio_plugin
-    CLASS_NAME CsvIoPlugin
-    csvioplugin.cpp
-    csvioplugin.h
-)
-
-target_link_libraries(csvio_plugin PRIVATE
-    Qt6::Core
-    myapp_core            # plugins typically link the host library
-)
-```
-
-`CLASS_NAME` must match the C++ class declared with
-`Q_PLUGIN_METADATA`:
+Every class in the public interface of `myapp_ui` must then be annotated:
 
 ```cpp
-class CsvIoPlugin : public QObject, public IoPluginInterface
-{
+class MYAPP_UI_EXPORT MainWindow : public QMainWindow { … };
+```
+
+Notes:
+
+- `generate_export_header` is a **CMake** command (module `GenerateExportHeader`), not a
+  Qt command. It has no `qt5_`/`qt_` prefix and never appears as `qt_add_export_header`.
+- `EXPORT_HEADER` in `target_sources` is CMake 3.27+. For older CMake, list the generated
+  header explicitly or rely on `CMAKE_INCLUDE_CURRENT_DIR` — `generate_export_header`
+  writes `myapp_ui_export.h` into the binary directory.
+- On Windows, `__declspec(dllexport)` happens when building the DLL and
+  `__declspec(dllimport)` when consuming it; the macro switches on the definition
+  `myapp_ui_EXPORTS`, which CMake defines for you. Forgetting the annotation is the number
+  one cause of "unresolved external symbol" against a Qt 5 DLL on MSVC.
+- `CXX_VISIBILITY_PRESET hidden` plus `VISIBILITY_INLINES_HIDDEN ON` on Linux/macOS makes
+  only annotated symbols visible; do that consistently, or an annotation you missed becomes
+  a link error only in release builds.
+
+## Object libraries for Qt code
+
+`OBJECT` libraries are tempting for build speed but each object library gets its own
+AUTOMOC pass and its resources must be pulled in explicitly, and `Q_INIT_RESOURCE` still
+applies. Prefer `STATIC` unless there is a measured problem.
+
+## Tests
+
+Qt 5 ships `Qt5::Test`, which works with CTest and needs no third-party framework.
+
+```cmake
+enable_testing()
+
+add_executable(tst_model WIN32 tst_model.cpp Model.cpp)
+target_link_libraries(tst_model PRIVATE Qt5::Test myapp::core)
+add_test(NAME tst_model COMMAND tst_model)
+set_tests_properties(tst_model PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+```
+
+- The test class derives from `QObject` and uses `private slots:` for test functions;
+  `QTEST_MAIN(TestModel)` generates `main` with a `QApplication` — the right choice when any
+  widget is constructed. `QTEST_GUILESS_MAIN` (since Qt 5.5) creates a `QCoreApplication`
+  instead, so it is for non-GUI classes that still need the event loop; `QTEST_APPLESS_MAIN`
+  (since Qt 5.6) creates no application object at all.
+- A Widgets test links `Qt5::Test` **and** needs a platform plugin at runtime:
+  `QT_QPA_PLATFORM=offscreen` in the test environment makes it headless (the kit ships
+  `plugins/platforms/qoffscreen.dll`; `qminimal.dll` is the fallback when it is absent).
+- A GUI-subsystem test binary (`WIN32` in `add_executable`) has no console for CTest to read.
+  Either omit `WIN32` for test executables (the usual choice), or keep it and collect the
+  result with QTest's own logger: `-o result.xml,xunitxml`. Both `xunitxml` and `junitxml`
+  format names are present in `<qt>/bin/Qt5Test.dll`, which is how to confirm them for the
+  kit in use.
+- Do not put `enable_testing()` inside `tests/`; the top-level file owns it.
+- There is no `qt_add_test`, `qt_add_executable_test`, or `qt_finalize_target` in Qt 5.
+  Plain `add_executable` + `add_test` is the supported wiring.
+
+CMake's own `create_test_sourcelist`/`ctest_add_test` machinery exists in Qt 5's
+`Qt5CTestMacros.cmake` (`expect_pass`, `test_module_includes`) but is for testing Qt
+itself, not for application test suites. Do not reach for it.
+
+## Plugins
+
+A Qt 5 plugin is a `MODULE` library with `Q_PLUGIN_METADATA`; the application discovers it
+at runtime through `QPluginLoader`, or loads by interface with `QApplication::instance()`
++ `qobject_cast`.
+
+```cmake
+add_library(myapp_filter_dark MODULE)
+target_sources(myapp_filter_dark PRIVATE DarkFilter.cpp DarkFilter.h)
+set_target_properties(myapp_filter_dark PROPERTIES
+    PREFIX "")                       # Windows: no extra prefix on the DLL
+target_compile_definitions(myapp_filter_dark PRIVATE QT_PLUGIN)
+target_link_libraries(myapp_filter_dark PRIVATE Qt5::Core myapp::core)
+```
+
+```cpp
+class DarkFilter : public QObject, public MyFilterInterface {
     Q_OBJECT
-    Q_PLUGIN_METADATA(IID "com.example.MyApp.IoPlugin/1.0")
-    Q_INTERFACES(IoPluginInterface)
-    // ...
+    Q_PLUGIN_METADATA(IID MyFilterInterface_iid FILE "darkfilter.json")
+    Q_INTERFACES(MyFilterInterface)
+public:
+    // …
 };
 ```
 
-### Static vs. dynamic plugins
+- `Q_PLUGIN_METADATA(IID …)` is required; `FILE` names an optional JSON metadata document
+  that sits next to the source.
+- The interface IID must be a `#define`d string constant shared between plugin and host,
+  and the interface header is compiled into both sides (`Q_INTERFACES` refers to it).
+- Deployment is directory-based: set `LIBRARY_OUTPUT_DIRECTORY`/`RUNTIME_OUTPUT_DIRECTORY`
+  (per-config variants `<CONFIG>_…` for multi-config generators) to a `plugins/` folder
+  the host adds via `QCoreApplication::addLibraryPath`. On Windows, `qt.conf` alongside the
+  executable is the shipped form of the same idea.
+- Statically linked plugins: build the plugin as a library and call
+  `Q_IMPORT_PLUGIN(PluginClassName)` once in the application. `qt5_import_plugins` does not
+  do this in CMake — it writes `QT_PLUGINS*` target properties that nothing in the Qt 5
+  CMake files reads, so it is inert here. Do not emit it as the solution to static plugin
+  linking.
+- There is no `qt_add_plugin` in Qt 5 (Qt 6 command). `add_library(… MODULE)` is the Qt 5
+  path, which is why the plugin boilerplate above is explicit.
 
-If Qt was built statically, `qt_add_plugin` produces a `STATIC` library by default.
-If Qt was built as shared libraries, it produces a `MODULE` library instead.
-Override with the `STATIC` keyword to force a static plugin even on a shared Qt build.
-The `SHARED` keyword is also accepted, but per Qt's docs, Qt converts it to `MODULE` internally —
-there is no way to force a true `SHARED` library here, by design (Visual Studio symbol-export).
-`MODULE` libraries are loaded dynamically at runtime;
-the load mechanism depends on the plugin's category (generic app plugins use `QPluginLoader`;
-image-format / SQL-driver / style / QML plugins are loaded automatically by their respective Qt
-subsystems).
+## When to split
 
-To statically link the plugin into the host instead:
-
-```cmake
-qt_add_plugin(csvio_plugin STATIC
-    CLASS_NAME CsvIoPlugin
-    csvioplugin.cpp
-    csvioplugin.h
-)
-```
-
-Then in the host target add `Q_IMPORT_PLUGIN(CsvIoPlugin)` once,
-or use the `target_link_libraries()` CMake command:
-
-```cmake
-target_link_libraries(myapp PRIVATE csvio_plugin)
-```
-
-Note: When installing a static `qt_add_plugin` for other projects to consume, you also need to
-install the internal helper targets that `qt_add_plugin` creates. Pass `OUTPUT_TARGETS <var>` to the
-call, then `install(TARGETS ${var} …)` alongside the plugin itself. Skipping this means
-consuming projects can't successfully link the static plugin.
-
-### QML extension plugin
-
-A plugin that adds C++ types to a QML module is **not** built with `qt_add_plugin` directly.
-It is declared as part of the QML module itself — see `qml-integration.md` for the
-`qt_add_qml_module(... PLUGIN_TARGET ...)` pattern.
-
-## Dependency direction
-
-Targets must form a directed acyclic graph. A common Qt project shape:
-
-```
-        +---------+
-        |  myapp  |  (executable)
-        +----+----+
-             |
-   +---------+---------+
-   |                   |
-+--v----+         +----v-----+
-| core  | <-----+ | widgets  |
-+-------+       | +----------+
-                |
-                |
-        +-------+--------+
-        | csvio_plugin   |
-        +----------------+
-```
-
-- `core` is the foundation; nothing in `core` depends on `widgets` or `csvio_plugin`.
-- Plugins depend on the host or on a thin "interface" library, not the other way around.
-  The host loads plugins; it never links them as direct dependencies (unless they are static).
-- If you find yourself wanting `core` to link `widgets`, the abstraction belongs in `core` and the
-  implementation in `widgets`.
-
-## Naming conventions
-
-- Library targets: `<project>_<role>` (`myapp_core`, `myapp_widgets`).
-  Avoid bare names like `core` that collide across projects.
-- Plugin targets: `<project>_<plugin>_plugin` or just `<plugin>_plugin`.
-  The `_plugin` suffix is conventional in Qt itself.
-- QML module backing-target names: same as the executable or library that owns the module,
-  one backing target per module.
-- Executable targets: lowercase project name (`myapp`).
-  Avoid case-insensitive name clashes between executable targets and QML module URIs as they
-  cause problems on Mac OS.
+Split on a real axis: a module boundary, a testable seam, a plugin contract, a
+build-time win, or a license boundary. "There will be more targets later" is not one.
+A flat layout with two `add_executable` calls is cheaper than a library that has to be
+re-exported every time its interface changes.
