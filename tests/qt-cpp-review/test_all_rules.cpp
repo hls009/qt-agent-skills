@@ -250,3 +250,60 @@ TestModel::~TestModel() {
 
 // ===== INC-2 file-level: std header before Qt header =====
 // (the #include <vector> at top is before #include <QtCore/QObject>)
+
+// ===== QT6: Qt 6-only API in implementation files =====
+void qt6IsmsInSources()
+{
+    // QT6-4: QMouseEvent::position()/globalPosition() are Qt 6 renames
+    mouseEvent->accept();
+    auto localPoint = mouseEvent->position();
+    auto globalPoint = mouseEvent->globalPosition();
+    Q_UNUSED(localPoint);
+    Q_UNUSED(globalPoint);
+
+    // QT6-5: QAbstractItemView::setCurrentSection() is Qt 6
+    QTableView *table = new QTableView();
+    table->setCurrentSection(2);
+
+    // QT6-6: QUuid::toBytes() is Qt 6
+    QUuid id = QUuid::createUuid();
+    QByteArray raw = id.toBytes();
+    Q_UNUSED(raw);
+
+    // QT6-7: QString::compareIgnoringCase() is Qt 6
+    QString first = QStringLiteral("alpha");
+    bool same = first.compareIgnoringCase(QStringLiteral("ALPHA")) == 0;
+    Q_UNUSED(same);
+
+    // QT6-8: QStyleHints::colorScheme() is Qt 6.5+
+    bool dark = qApp->styleHints()->colorScheme() == Qt::ColorScheme::Dark;
+    Q_UNUSED(dark);
+
+    // QT6-2 / QT6-3 in source form
+    QStringConverter utf8(QStringConverter::Utf8);
+    Q_UNUSED(utf8);
+
+    // QT6-1: Qt 6 q20 shim namespace
+    auto buf = q20::make_unique_for_overwrite<int[]>(16);
+    Q_UNUSED(buf);
+}
+
+// ===== DEP: Qt 5 deprecations that still compile =====
+void deprecatedButQt5()
+{
+    // DEP-17: QString::SplitBehavior is deprecated in Qt 5.15
+    QStringList parts = csv.split(',', QString::SkipEmptyParts);
+    Q_UNUSED(parts);
+
+    // DEP-14: QRegExp is legacy; QRegularExpression is the supported engine
+    QRegExp rx("a+");
+    if (rx.exactMatch(textValue)) {
+        // DEP-18: QFontMetrics::width() deprecated since Qt 5.11
+        const int w = fontMetrics().width(textValue);
+        Q_UNUSED(w);
+    }
+
+    // DEP-15: QDesktopWidget deprecated since Qt 5.11
+    QDesktopWidget *desktopWidget = QApplication::desktop();
+    Q_UNUSED(desktopWidget);
+}

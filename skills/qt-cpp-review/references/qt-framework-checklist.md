@@ -69,15 +69,20 @@ Each rule has a short ID prefixed with `FW-` for cross-referencing.
 
 ## Properties (Framework)
 
-- **FW-PRP-2**: Existing QML-exposed classes: do NOT add FINAL to
-  new or existing properties (source compat breakage for
-  subclasses outside the module).
+- **FW-PRP-2**: Do not add `FINAL` to a property of a class that is
+  subclassed outside this library: it is a source-compatibility break
+  for consumers, and there is no way to "un-final" a property once a
+  release is out.
+- **FW-PRP-3**: Every property added to an exported class needs its
+  `READ`/`WRITE`/`NOTIFY` accessors exported too — an unexported
+  accessor body is the usual cause of link errors on Windows.
 
 ## Documentation
 
 - **FW-DOC-1**: New public classes: complete docs with `\since`
   tag and overview section; check `\ingroup` for discoverability.
-- **FW-DOC-2**: Mention in "What's New in Qt 6" if appropriate.
+- **FW-DOC-2**: Record the change in the project's own changelog or
+  "What's new" page, with the library version it lands in.
 
 ## Value Classes
 
@@ -88,8 +93,11 @@ Each rule has a short ID prefixed with `FW-` for cross-referencing.
   Q_DECLARE_TYPEINFO + ADL swap).
 - **FW-VAL-4**: Member-swap: swap in declaration order, use
   member's member-swap > qt_ptr_swap > std::swap. Never qSwap.
-- **FW-VAL-5**: Don't add Q_DECLARE_METATYPE (automatic since
-  Qt 6).
+- **FW-VAL-5**: In Qt 5 a custom type used in a `QVariant`, a
+  queued connection, or a cross-thread signal/slot still needs
+  `Q_DECLARE_METATYPE` **and** `qRegisterMetaType<T>()` for queued
+  delivery. The "automatic since Qt 6" reasoning does not apply:
+  removing the declaration here is a runtime failure, not a cleanup.
 - **FW-VAL-6**: Move SMFs: inline and noexcept.
 - **FW-VAL-7**: Never export non-polymorphic class wholesale.
   Export only public/protected out-of-line members.
@@ -129,8 +137,9 @@ Each rule has a short ID prefixed with `FW-` for cross-referencing.
   across classes (class scope limits use cases and drives
   duplication — weigh both; see universal ENM-10).
 - **FW-ENM-3**: New enumerators: `\value [since VERSION]` in docs.
-- **FW-ENM-6**: Scoped enums in QML-exposed classes:
-  `Q_CLASSINFO("RegisterEnumClassesUnscoped", "false")`.
+- **FW-ENM-6**: Prefer `enum class` + `Q_ENUM`; consumers outside a
+  DLL boundary need the underlying type spelled explicitly to keep the
+  ABI stable across releases.
 
 ## Namespaces
 
@@ -147,8 +156,10 @@ Each rule has a short ID prefixed with `FW-` for cross-referencing.
 
 ## Relational Operators (Framework)
 
-- **FW-REL-1**: Avoid signed/unsigned comparison. Use
-  `q20::cmp_*` (Qt's C++20 backport shim).
+- **FW-REL-1**: Avoid signed/unsigned comparison. Qt 5 ships no
+  `q20::` shim: under C++20 use `std::cmp_equal`/`std::cmp_less`/…
+  from `<utility>`; under C++17 cast explicitly through a common type
+  and say which one.
 
 ## Conditional Compilation (Framework)
 
@@ -157,12 +168,20 @@ Each rule has a short ID prefixed with `FW-` for cross-referencing.
 - **FW-CND-3**: Don't check `defined()` if initial version is in
   required C++ standard.
 
-## QML Module Versioning
+## Library and plugin versioning (Qt 5)
 
-- **FW-QML-1**: New properties/methods/signals must be revisioned.
-- **FW-QML-2**: Use two-argument forms for REVISION/Q_REVISION.
-- **FW-QML-3**: Don't add new props/signals to QObject class
-  itself (affects all QML consumers).
+- **FW-VER-1**: A shared library sets `VERSION`/`SOVERSION` on the
+  target (Linux/macOS) and keeps `generate_export_header`'s version
+  macros in sync with the project version.
+- **FW-VER-2**: A plugin's `Q_PLUGIN_METADATA(IID …)` interface string
+  changes only when the interface truly changes; a bumped IID
+  invalidates every deployed plugin build.
+- **FW-VER-3**: Adding a virtual function to an exported class changes
+  the vtable layout: consumers must be rebuilt. Prefer a new interface
+  (IID) or a signal, and record the choice in the changelog.
+- **FW-VER-4**: `Q_REVISION`/`Q_PROPERTY(... REVISION 1)` exists in
+  Qt 5 but is consumed by the QML type system; in a Widgets-only
+  project it has no effect — do not add it as a compatibility device.
 
 ## Commit Message
 

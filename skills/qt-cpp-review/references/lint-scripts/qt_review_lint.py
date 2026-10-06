@@ -2,12 +2,18 @@
 # Copyright (C) 2026 The Qt Company Ltd.
 # SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 """
-qt_review_lint.py — Data-driven single-pass Qt6 C++ linter.
+qt_review_lint.py — Data-driven single-pass Qt 5 C++ (Qt Widgets) linter.
 
 Rules are defined as entries in typed tables (RULES_SIMPLE,
 RULES_CONTEXT, RULES_FLAG) processed by a generic dispatch loop.
 A small number of rules that require custom logic remain as
 procedural code in scan_file().
+
+Target: Qt 5.x Widgets code (validated against a Qt 5.15.2 installation).
+The QT6 category exists because Qt 6 documentation dominates the training
+data of the models that write this code; every QT6 entry was checked
+against Qt 5.15.2 public headers or CMake files, so the finding is a
+compile/configure failure, not a style preference.
 
 Rule categories:
   INC  — Include ordering and usage
@@ -23,6 +29,7 @@ Rule categories:
   VAL  — Value class conventions
   HDR  — Public header rules
   TRN  — Ternary operator
+  QT6  — Qt 6-only API or CMake surfaced in a Qt 5 project
 
 Usage:
     python qt_review_lint.py <file1.cpp> [file2.h ...]
@@ -136,6 +143,51 @@ RE_DEP12_JAVA_ITER = re.compile(
 )
 RE_DEP13_QCHAR = re.compile(r'(?<![:])\bQChar\s+[a-zA-Z_]')
 RE_DEP13_EXCLUDE = re.compile(r'QChar::')
+RE_DEP14_QREGEXP = re.compile(r'(?<![a-zA-Z_])QRegExp\b')
+RE_DEP15_DESKTOPWIDGET = re.compile(r'(?<![a-zA-Z_])QDesktopWidget\b')
+RE_DEP16_TEXTCODEC = re.compile(r'(?<![a-zA-Z_])QTextCodec\b')
+RE_DEP17_SPLIT = re.compile(r'QString::(SkipEmptyParts|KeepEmptyParts)\b')
+RE_DEP18_FONTSWIDTH = re.compile(
+    r'\b(?:fontMetrics|fm|metrics)\s*(?:\(\))?\s*(?:\.|->)\s*width\s*\(')
+
+# QT6 — Qt 6-only API appearing in Qt 5 code. Every symbol here was checked
+# against Qt 5.15.2 public headers (<qt>/include/QtCore, QtGui, QtWidgets) and
+# is ABSENT there, so a match is a compile error, not a style preference.
+# Counter-examples that DO exist in Qt 5.15.2 and must never be flagged:
+# QStringView, qsizetype, Qt::SkipEmptyParts, QTimer::callOnTimeout,
+# QWheelEvent::position()/globalPosition(), QColor::name(NameFormat),
+# QIcon::name(), QMetaObject::invokeMethod with a functor.
+RE_QT6_Q20 = re.compile(r'\bq20::|#{1}\s*include\s*[<"]q\d{2}')
+RE_QT6_TEXTAPI = re.compile(
+    r'\b(QAnyStringView|QByteArrayView|QStringConverter|QStringDecoder|'
+    r'QStringEncoder|QUtf16StringView|QUtf8StringView|QLatin1StringView)\b')
+RE_QT6_METATYPE = re.compile(
+    r'\bQMetaType::fromType\b|\.typeId\s*\(\s*\)|\bQMetaType::Id\b')
+RE_QT6_MOUSEPOS = re.compile(
+    r'\b(?:mouseEvent|mouse|ev|event)\s*->\s*(?:position|globalPosition|scenePosition)\s*\(\s*\)')
+RE_QT6_VIEWSECTION = re.compile(
+    r'\b\w*(?:[Vv]iew|[Tt]able|[Tt]ree|[Ll]ist)\w*\s*(?:->|\.)\s*setCurrentSection\s*\(')
+RE_QT6_UUID_BYTES = re.compile(r'\b(?:uuid|id)\s*(?:\.|->)\s*toBytes\s*\(\s*\)')
+RE_QT6_COMPARE_IC = re.compile(r'\bcompareIgnoringCase\s*\(')
+RE_QT6_COLOR_SCHEME = re.compile(r'\bstyleHints\s*\(\s*\)\s*->\s*colorScheme\b')
+RE_QT6_PROPERTY = re.compile(
+    r'\bQ_PROPERTY\s*\(\s*std::(optional|variant|pair|function)\b')
+RE_QT6_QMLMACRO = re.compile(
+    r'\bQML_(ELEMENT|EXTENDED_TYPE|NAMED|UNCREATABLE|SINGLETON|FOREIGN|INTERFACE|TYPE)\b')
+RE_QT6_PROPERTY_API = re.compile(r'\b(QBindable|QProperty<|QPropertyWatcher|QUntypedProperty)\b')
+RE_QT6_NEW_TYPES = re.compile(
+    r'\b(QLocalTime|QDayTime|QSizeMetrics|QNativeInterface|QEventPoint|QSinglePointEvent)\b')
+RE_QT6_HDPI_ATTR = re.compile(r'\bQt::AA_EnableHighDpiWindowScaler\b')
+RE_QT6_CMAKE_CMDS = re.compile(
+    r'\b(qt_standard_project_setup|qt_add_executable|qt_add_library|qt_add_qml_module|'
+    r'qt_add_translations|qt_add_shaders|qt_add_plugin|qt_policy|qt_deploy_qml_imports)\s*\(')
+RE_QT6_CMAKE_TARGETS = re.compile(r'\bQt6::|find_package\s*\(\s*Qt6\b|NAMES\s+Qt6')
+RE_QT6_QML_ASSETS = re.compile(r'\bQML_FILES\b|\bqmldir\b|"[^"]*\.qml"')
+RE_QT6_QUICK_DEPS = re.compile(
+    r'\bQt5::(Qml|Quick|QuickControls2|QuickWidgets|QuickShapes|QmlModels)\b')
+
+# Qt 6 CMake syntax rules apply only to build files.
+RE_CMAKE_FILE = re.compile(r"(CMakeLists\.txt|\.cmake)$", re.I)
 
 # PAT / HDR / API / ENM / TMO / CND / VAL / TRN
 RE_HDR3_MINMAX = re.compile(r'std::(min|max)\s*\(')
@@ -292,7 +344,7 @@ RULES_SIMPLE: list[Rule] = [
     Rule("DEP-4", RE_DEP4_FOREACH,
          "Q_FOREACH/foreach \u2014 use range-based for loop"),
     Rule("DEP-5", RE_DEP5_QPAIR,
-         "QPair \u2014 use std::pair (alias since Qt 6.0)"),
+         "QPair \u2014 use std::pair (Qt 5 has its own QPair template; std::pair is preferred)"),
     Rule("DEP-6", RE_DEP6_QSDP,
          "QSharedDataPointer \u2014 use QExplicitlySharedDataPointer",
          exclude=RE_DEP6_EXCLUDE),
@@ -313,6 +365,18 @@ RULES_SIMPLE: list[Rule] = [
     Rule("DEP-13", RE_DEP13_QCHAR,
          "QChar as object type \u2014 use char16_t; QChar:: namespace is OK",
          exclude=RE_DEP13_EXCLUDE),
+    Rule("DEP-14", RE_DEP14_QREGEXP,
+         "QRegExp \u2014 legacy engine; use QRegularExpression (Unicode properties, PCRE syntax, supported engine)"),
+    Rule("DEP-15", RE_DEP15_DESKTOPWIDGET,
+         "QDesktopWidget \u2014 deprecated since Qt 5.11; use QScreen / QGuiApplication::screens()"),
+    Rule("DEP-17", RE_DEP17_SPLIT,
+         "QString::SkipEmptyParts \u2014 deprecated in Qt 5.15; use Qt::SkipEmptyParts "
+         "(Qt::SplitBehaviorFlags exists since 5.14)"),
+    Rule("DEP-18", RE_DEP18_FONTSWIDTH,
+         "QFontMetrics/QFontMetricsF::width() \u2014 deprecated since Qt 5.11; use horizontalAdvance()"),
+    Rule("DEP-16", RE_DEP16_TEXTCODEC,
+         "QTextCodec \u2014 available but not the default path; prefer QString::fromUtf8()/fromLatin1() "
+         "or an explicit codec only for legacy encodings"),
     # --- HDR ---
     Rule("HDR-3", RE_HDR3_MINMAX,
          "Unprotected std::min/max \u2014 use (std::min)(a,b) for Windows macro safety",
@@ -378,6 +442,52 @@ RULES_SIMPLE: list[Rule] = [
 
 # Tier A special: PAT-2 needs "nullopt" not-in-line check
 
+# Tier A: Qt 6-only API in a Qt 5 project. Always on (not framework-gated):
+# these are compile/configure errors, not conventions.
+RULES_QT6: list[Rule] = [
+    Rule("QT6-1", RE_QT6_Q20,
+         "Qt 6 q20 shim/compat header \u2014 Qt 5 ships no <qNN…> headers; use <algorithm>, <memory>, <optional> directly"),
+    Rule("QT6-2", RE_QT6_TEXTAPI,
+         "Qt 6 string/text API \u2014 absent in Qt 5 (QStringView exists in 5.15, QAnyStringView/QStringConverter do not)"),
+    Rule("QT6-3", RE_QT6_METATYPE,
+         "Qt 6 meta-type API \u2014 use QMetaType::type(\"TypeName\") and QVariant::userType() in Qt 5"),
+    Rule("QT6-4", RE_QT6_MOUSEPOS,
+         "QMouseEvent::position()/globalPosition() are Qt 6 \u2014 use pos()/globalPos()/localPos()/windowPos() (QWheelEvent::position() is fine in 5.15)"),
+    Rule("QT6-5", RE_QT6_VIEWSECTION,
+         "QAbstractItemView::setCurrentSection() is Qt 6 \u2014 use setCurrentIndex()/setCurrentRow()/setCurrentColumn() "
+         "(QDateTimeEdit::setCurrentSection does exist in Qt 5)"),
+    Rule("QT6-6", RE_QT6_UUID_BYTES,
+         "QUuid::toBytes() is Qt 6 \u2014 use toByteArray() (Qt 5)"),
+    Rule("QT6-7", RE_QT6_COMPARE_IC,
+         "QString::compareIgnoringCase() is Qt 6 \u2014 use compare(s, Qt::CaseInsensitive)"),
+    Rule("QT6-8", RE_QT6_COLOR_SCHEME,
+         "QStyleHints::colorScheme() is Qt 6.5+ \u2014 no light/dark query in Qt 5; palette-based styling only"),
+    Rule("QT6-9", RE_QT6_PROPERTY,
+         "std::optional/variant/pair/function in a Q_PROPERTY \u2014 Qt 5 moc cannot register these "
+         "(plain C++ functions taking std::optional are fine; signals, slots and properties are not)"),
+    Rule("QT6-10", RE_QT6_QMLMACRO,
+         "QML registration macro is Qt 6 \u2014 and QML is out of scope here: expose the class to Widgets code directly"),
+    Rule("QT6-11", RE_QT6_PROPERTY_API,
+         "Qt 6 property-binding API (QProperty/QBindable) \u2014 absent in Qt 5; use Q_PROPERTY plus notifications"),
+    Rule("QT6-12", RE_QT6_NEW_TYPES,
+         "Qt 6 type (QLocalTime/QDayTime/QSizeMetrics/QNativeInterface/QEventPoint/QSinglePointEvent) \u2014 absent in Qt 5"),
+    Rule("QT6-13", RE_QT6_HDPI_ATTR,
+         "Qt::AA_EnableHighDpiWindowScaler is a Qt 6 attribute \u2014 Qt 5 has AA_EnableHighDpiScaling / AA_UseHighDpiPixmaps"),
+]
+
+# Qt 6 CMake syntax. These run only when the input is a CMake file; the same
+# strings in a .cpp comment or string literal would be noise.
+RULES_QT6_CMAKE: list[Rule] = [
+    Rule("QT6-14", RE_QT6_CMAKE_CMDS,
+         "Qt 6 CMake command \u2014 undefined in Qt 5; configuration stops with 'Unknown CMake command'"),
+    Rule("QT6-15", RE_QT6_CMAKE_TARGETS,
+         "Qt 6 package/target \u2014 use find_package(Qt5 REQUIRED COMPONENTS …) and Qt5::<Module>"),
+    Rule("QT6-16", RE_QT6_QML_ASSETS,
+         "QML asset wiring \u2014 out of scope: this project is Qt Widgets only"),
+    Rule("QT6-17", RE_QT6_QUICK_DEPS,
+         "Qt5::Qml/Quick* dependency \u2014 a Widgets-only project must not link the Qt Quick stack"),
+]
+
 # Tier B: Match + context window check.
 RULES_CONTEXT: list[Rule] = [
     Rule("PAT-11", RE_PAT11_QREGEX,
@@ -426,9 +536,11 @@ RULES_FRAMEWORK: list[Rule] = [
     Rule("CND-2", RE_CND2_HASINC,
          "__has_include() for non-Qt header \u2014 prefer __cpp_lib_* feature macros"),
     Rule("VAL-6", RE_VAL6_METATYPE,
-         "Q_DECLARE_METATYPE \u2014 automatic since Qt 6, remove"),
+         "Q_DECLARE_METATYPE \u2014 still required in Qt 5 for cross-thread/queued QVariant payloads; "
+         "verify it exists for every custom type used in a signal, slot or property"),
     Rule("PAT-6", RE_PAT6_MAKEUNIQUE,
-         "std::make_unique<T[]> \u2014 consider q20::make_unique_for_overwrite (avoids zeroing)"),
+         "std::make_unique<T[]> zero-initialises \u2014 when the buffer is filled immediately, "
+         "wrap a raw 'new T[n]' in std::unique_ptr<T[]> instead (Qt 5 has no q20 shim)"),
 ]
 
 
@@ -493,6 +605,7 @@ def scan_file(filepath: str, framework: bool = False) -> list[Finding]:
 
     ext = path.suffix.lstrip(".")
     is_header = ext in ("h", "hpp")
+    is_cmake = bool(RE_CMAKE_FILE.search(filepath))
     num_lines = len(lines)
 
     def emit(line: int, rule: str, msg: str) -> None:
@@ -546,13 +659,19 @@ def scan_file(filepath: str, framework: bool = False) -> list[Finding]:
     layout_changed_line = 0
 
     # Pre-compute active rule list (avoid rebuilding per line)
-    active_simple = RULES_SIMPLE + RULES_FRAMEWORK if framework else RULES_SIMPLE
+    if is_cmake:
+        # Build file: only the CMake-specific rules make sense here.
+        active_simple = list(RULES_QT6_CMAKE) + (
+            RULES_FRAMEWORK if framework else [])
+    else:
+        active_simple = RULES_SIMPLE + RULES_QT6 + (
+            RULES_FRAMEWORK if framework else [])
 
     # --- Line-by-line scan ---
     for i, line in enumerate(lines):
         lineno = i + 1
 
-        if RE_COMMENT_LINE.match(line):
+        if RE_COMMENT_LINE.match(line) or (is_cmake and line.lstrip().startswith("#")):
             continue
 
         # --- Tier A: simple rules (+ framework rules if enabled) ---

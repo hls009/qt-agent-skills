@@ -54,3 +54,44 @@ QChar separator = u'/';
 
 // VAL-6: Q_DECLARE_METATYPE
 Q_DECLARE_METATYPE(NoteRoles)
+
+// ===== QT6: Qt 6-only API surfaced in Qt 5 code =====
+// Each line below must produce one QT6-* finding. Symbols were chosen to be
+// genuinely absent from Qt 5.15.2 public headers.
+
+// QT6-2: Qt 6 string/text API (QStringView alone is legal in 5.15 — do not use it here)
+void takesAnyView(QAnyStringView view);
+QByteArrayView viewOfBytes();
+
+// QT6-3: Qt 6 meta-type API
+int metaTypeId = QMetaType::fromType<QString>().id();
+int variantTypeId = variantValue.typeId();
+
+// QT6-9: std::optional cannot be a Q_PROPERTY type for Qt 5 moc
+class OptionalHolder : public QObject {
+    Q_OBJECT
+    Q_PROPERTY(std::optional<int> threshold READ threshold WRITE setThreshold)
+public:
+    int threshold() const { return m_threshold.value_or(0); }
+    void setThreshold(int v) { m_threshold = v; }
+private:
+    std::optional<int> m_threshold;
+};
+
+// QT6-10: QML registration macros do not exist in Qt 5
+class WidgetBridge : public QObject {
+    Q_OBJECT
+    QML_ELEMENT
+public:
+    explicit WidgetBridge(QObject *parent = nullptr) : QObject(parent) {}
+};
+
+// QT6-11: Qt 6 property binding API
+QProperty<int> boundValue;
+
+// QT6-12: Qt 6 value types absent from Qt 5
+QLocalTime wallClock;
+QSizeMetrics metricsForLayout;
+
+// QT6-13: Qt 6 high-DPI attribute name
+QCoreApplication::setAttribute(Qt::AA_EnableHighDpiWindowScaler);

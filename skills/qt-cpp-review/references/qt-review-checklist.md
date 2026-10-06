@@ -1,12 +1,17 @@
-# Qt6 Code Review Checklist
+# Qt 5 C++ (Qt Widgets) Code Review Checklist
 
 Distilled from the Qt Wiki "Things To Look Out For In Reviews".
 Each rule has a short ID for cross-referencing in review reports.
 
-Rules specific to Qt framework/module development (binary
-compatibility, export macros, d-pointers, qdoc, QML versioning)
-are in `qt-framework-checklist.md` — loaded only when reviewing
-Qt module code.
+Target: Qt 5.x C++ built with Qt Widgets (validated against Qt 5.15.2).
+
+Rules specific to shared-library / plugin development inside a Qt 5
+application (binary compatibility, export macros, d-pointers, qdoc,
+ABI versioning) are in `qt-framework-checklist.md` — loaded only when
+that mode is requested.
+
+Qt 6-only API is a hard failure class here, not a style preference:
+see `qt515-deltas.md` and the linter's `QT6-*` rules.
 
 ## API & Naming
 
@@ -46,8 +51,16 @@ Qt module code.
 
 - **PRP-1**: New classes: Q_PROPERTY FINAL unless intended for
   override.
-- **PRP-3**: Avoid properties with same name as meta-methods
-  (shadowing in QML).
+- **PRP-3**: Avoid a `Q_PROPERTY` name that collides with another
+  meta-object method or property in the class or its bases — `moc`
+  emits a duplicate-definition or ambiguous-`READ` error, and the
+  meta-object lookup silently picks one.
+- **PRP-4**: A property written for QSS (`setObjectName` selectors)
+  must be declared with `Q_PROPERTY` for dynamic properties to be
+  selectable: `setProperty("state", …)` alone is selectable in Qt 5
+  stylesheets, but the `Q_PROPERTY` declaration is what makes it
+  introspectable and resettable. Don't add `Q_PROPERTY` solely for
+  styling when `setProperty` already suffices.
 
 ## Timeouts
 

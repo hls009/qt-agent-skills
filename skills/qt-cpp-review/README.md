@@ -1,73 +1,74 @@
-# Qt C++ Code Review
+# qt-cpp-review
 
-Structured, read-only code review for Qt6 C++ code. Combines a
-deterministic Python linter with six parallel deep-analysis agents.
+Read-only code review for Qt 5 **Widgets** C++ code: a deterministic linter followed by
+six parallel deep-analysis passes, reporting only high-confidence findings with
+structured mitigations.
+
+Validated against Qt 5.15.2. Not for Qt 6, qmake, or QML/Qt Quick.
+
+## When it should activate
+
+- "review", "check", "audit", "look over", "sanity check" about Qt C++ code.
+- Before committing, when the change touches `Q_OBJECT` classes, signals/slots,
+  models, delegates, threads, or error handling.
+- "Why doesn't this compile against Qt 5?" — the `QT6-*` rule category answers it
+  mechanically.
 
 ## What it does
 
-1. **Linter** (Phase 1) — A single-pass Python script that checks
-   60+ rules covering API naming, memory ownership, thread safety,
-   signal/slot patterns, modern C++ with Qt, error handling, and
-   deprecated patterns. Runs in under a second with no external
-   dependencies beyond Python 3.6+.
+1. **Lint** — `references/lint-scripts/qt_review_lint.py`, single pass, Python 3.6+,
+   no dependencies, 75+ rules across the categories INC, DEP, PAT, MDL, ERR, LCY, API,
+   ENM, TMO, CND, VAL, HDR, TRN and QT6. Deterministic output `FILE:LINE RULE MESSAGE`;
+   exit 0 clean, 1 with findings. Add `--framework` for library/plugin rules, and pass
+   `CMakeLists.txt`/`*.cmake` files to get the Qt 6 build-syntax checks.
+2. **Deep analysis** — six read-only agents: Model/View contracts, ownership and
+   lifecycle, thread safety, API and C++ correctness, error handling, performance and
+   quality. Confidence gating (>80 report, 60–79 investigation target, <60 suppress).
+3. **Report** — fixed markdown structure with lint findings, deep findings, investigation
+   targets, and a per-category summary table.
 
-2. **Deep analysis** (Phase 2) — Six focused agents run in parallel,
-   each covering a specific domain: model contracts, ownership and
-   lifecycle, threading, API correctness, error handling, and
-   performance. Agents report only findings above 80/100 confidence.
+## What it corrects
 
-3. **Consolidated report** (Phase 3) — Deduplicated, scored findings
-   with file paths, line numbers, traces, and mitigations.
+Qt 6 documentation dominates the training data, so generated Qt 5 code routinely contains
+API that Qt 5 does not have — `q20::`, `QAnyStringView`, `QMetaType::fromType<T>()`,
+`QProperty<T>`, `QML_ELEMENT`, `QAbstractItemView::setCurrentSection()`,
+`QStyleHints::colorScheme()`, `Qt::AA_EnableHighDpiWindowScaler`, `std::optional` in a
+`Q_PROPERTY`. Each of those is a compile error here, and the `QT6-*` rules encode them
+with the Qt 5 replacement.
 
-## Requirements
-
-- Python 3.6+ (for the linter script)
-- No external Python dependencies
-
-## Installation
-
-| Platform | Command |
-|----------|---------|
-| **Claude Code** | `/plugin marketplace add TheQtCompanyRnD/agent-skills` then `/plugin install qt-development-skills` |
-| **Codex CLI** | `npx skills add TheQtCompanyRnD/agent-skills` |
-| **Copilot** | `gh skill install TheQtCompanyRnD/agent-skills qt-cpp-review` (preview) — or auto-discovered from `.claude/skills/` |
-| **Cursor** | Copy `SKILL.md` to `.cursor/rules/qt-cpp-review/RULE.md` |
-| **Windsurf** | Copy `platforms/windsurf.md` to `.windsurf/rules/qt-cpp-review.md` |
-
-## Platform variants
-
-The full skill (`SKILL.md`) uses a multi-phase linter + agent
-architecture that requires a platform capable of running Python
-scripts and launching parallel subagents. This works natively on
-**Claude Code** and **Codex CLI**.
-
-**GitHub Copilot** also reads the full skill directory natively
-(via `.claude/skills/`, `.github/skills/`, or `~/.copilot/skills/`),
-though it cannot run the Python linter or launch parallel
-subagents — only the static guidance loads.
-
-For platforms that do not support multi-file skills or script
-execution, condensed variants are available in `platforms/`:
-
-- **windsurf.md** — Compact rule summary for Windsurf (under 2K
-  chars). Highest-priority rules only.
-
-These variants provide useful review guidance but should be expected
-to produce less thorough results than the full skill. The
-deterministic linter and parallel agent analysis are only available
-on platforms that support the full skill directory.
+The table also records the opposite failure — Qt 6-era names that already exist in
+Qt 5.15 (`QStringView`, `qsizetype`, `Qt::SkipEmptyParts`, `QTimer::callOnTimeout`,
+`QWheelEvent::position()`, `QColor::name(QColor::NameFormat)`, `QIcon::name()`), which
+must not be flagged. Flagging them wastes reviewer time and teaches the next model that
+Qt 5 is smaller than it is.
 
 ## Files
 
-| File | Purpose |
-|------|---------|
-| `SKILL.md` | Full skill instructions (460 lines) |
-| `references/qt-review-checklist.md` | 60+ review rules with IDs |
-| `references/qt-framework-checklist.md` | Additional rules for Qt module development |
-| `references/qt-deprecated-classes.md` | Deprecated Qt API reference |
-| `references/lint-scripts/qt_review_lint.py` | Deterministic Python linter |
-| `platforms/windsurf.md` | Compact variant for Windsurf |
+```
+SKILL.md                                  entry point: phases, agents, output format
+README.md                                 this file
+LICENSE.txt                               licence for this skill
+references/
+  qt-review-checklist.md                universal Qt 5 C++/Widgets rules (always loaded)
+  qt515-deltas.md                       Qt 6-only API, its Qt 5 replacement, and what is
+                                        legal in 5.15 despite looking Qt 6 (do not flag)
+  model-view-checklist.md               model/view, delegate and proxy rules
+  qt-framework-checklist.md             library/plugin rules (framework mode only)
+  qt-deprecated-classes.md              what not to use in Qt 5, with deprecation evidence
+  lint-scripts/qt_review_lint.py        the linter
+```
 
-## License
+## External dependencies
 
-LicenseRef-Qt-Commercial OR BSD-3-Clause
+Python 3.6+ for the linter. Optionally a Qt documentation search tool (prefer
+`version="5.15.18"`); without one, verify symbols in the Qt 5 installation the project
+builds against — `<qt>/include/<Module>/q*.h` and `<qt>/lib/cmake/Qt5<Module>/` — and
+downgrade anything unverifiable to an investigation target.
+
+This skill never modifies code, and never runs a build. It reports; the user builds.
+
+## Self-containment
+
+This directory is the whole skill. Every file it uses is inside it, every path it mentions
+is relative to itself, and it does not reference or require any other skill. Copying this
+directory alone preserves full functionality.

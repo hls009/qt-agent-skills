@@ -83,14 +83,50 @@ EXPECTED_UNIVERSAL = {
     ("test_all_rules.cpp", "LCY-5"): 2,
     ("test_all_rules.cpp", "LCY-6"): 1,
 
+    # --- DEP: Qt 5 deprecations that still compile ---
+    ("test_all_rules.cpp", "DEP-14"): 1,
+    ("test_all_rules.cpp", "DEP-15"): 1,
+    ("test_all_rules.cpp", "DEP-17"): 1,
+    ("test_all_rules.cpp", "DEP-18"): 1,
+
+    # --- QT6: Qt 6-only API surfaced in Qt 5 code ---
+    ("test_all_rules.h", "PAT-2"): 1,
+    ("test_all_rules.h", "QT6-1"): 1,
+    ("test_all_rules.h", "QT6-2"): 2,
+    ("test_all_rules.h", "QT6-3"): 2,
+    ("test_all_rules.h", "QT6-9"): 1,
+    ("test_all_rules.h", "QT6-10"): 1,
+    ("test_all_rules.h", "QT6-11"): 1,
+    ("test_all_rules.h", "QT6-12"): 2,
+    ("test_all_rules.h", "QT6-13"): 1,
+    ("test_all_rules.cpp", "QT6-1"): 1,
+    ("test_all_rules.cpp", "QT6-2"): 1,
+    ("test_all_rules.cpp", "QT6-4"): 2,
+    ("test_all_rules.cpp", "QT6-5"): 1,
+    ("test_all_rules.cpp", "QT6-6"): 1,
+    ("test_all_rules.cpp", "QT6-7"): 1,
+    ("test_all_rules.cpp", "QT6-8"): 1,
+
     # --- separate test files ---
     ("test_mdl1.cpp", "MDL-1"): 1,
     ("test_mdl6.cpp", "MDL-6"): 1,
     ("test_mdl6.cpp", "LCY-5"): 1,
+
+    # --- CMake negative fixture (Qt 6 build syntax in a Qt 5 project) ---
+    ("CMakeLists.txt", "QT6-14"): 4,
+    ("CMakeLists.txt", "QT6-15"): 2,
+    ("CMakeLists.txt", "QT6-16"): 2,
+    ("CMakeLists.txt", "QT6-17"): 1,
 }
 
 # Framework-mode expected findings (--framework flag)
 # Only the framework-specific rules from dedicated test files.
+# Rules that fire regardless of --framework, exercised on the framework fixture.
+EXPECTED_FRAMEWORK_ALWAYS = {
+    ("test_framework.h", "QT6-1"): 1,
+    ("test_framework.h", "INC-3"): 1,
+}
+
 EXPECTED_FRAMEWORK = {
     ("test_framework.h", "INC-6"): 1,
     ("test_framework.h", "INC-1"): 1,
@@ -166,6 +202,7 @@ def main() -> int:
         str(TEST_DIR / "test_all_rules.cpp"),
         str(TEST_DIR / "test_mdl1.cpp"),
         str(TEST_DIR / "test_mdl6.cpp"),
+        str(TEST_DIR / "test_qt6_cmake" / "CMakeLists.txt"),
     ]
     output = run_linter(universal_files)
     actual = parse_output(output)
@@ -194,8 +231,10 @@ def main() -> int:
     ]
     output = run_linter(framework_files, extra_args=["--framework"])
     actual = parse_output(output)
+    fw_expected = dict(EXPECTED_FRAMEWORK)
+    fw_expected.update(EXPECTED_FRAMEWORK_ALWAYS)
     passed, total, errors = check_expectations(
-        actual, EXPECTED_FRAMEWORK, "Framework")
+        actual, fw_expected, "Framework")
 
     if errors:
         for e in errors:
