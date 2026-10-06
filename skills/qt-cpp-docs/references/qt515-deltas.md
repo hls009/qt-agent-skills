@@ -1,5 +1,7 @@
 # Version claims when documenting Qt 5 code
 
+<!-- check-skills: allows-qt6-counterexamples -->
+
 This skill writes prose that outlives the code review, so the highest-risk errors here are
 *attributed APIs*: documenting something as available in Qt 5 when it is Qt 6, or describing
 Qt 5 behaviour using Qt 6 semantics. Rules below are checked against Qt 5.15.2 headers.

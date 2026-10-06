@@ -1,5 +1,7 @@
 # Qt 6 and QML UI vocabulary in Qt 5 Widgets output
 
+<!-- check-skills: allows-qt6-counterexamples -->
+
 This skill produces Qt 5 Widgets design guidance and code. The failure mode here is not
 compile errors but *plausible nonsense*: QML-shaped advice, or Qt 6-only API, written into a
 Qt 5 Widgets answer. Each claim below was checked against Qt 5.15.2 headers.

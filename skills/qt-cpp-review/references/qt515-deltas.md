@@ -1,5 +1,7 @@
 # Qt 6 API in Qt 5 code — review rules
 
+<!-- check-skills: allows-qt6-counterexamples -->
+
 Reference for the `QT6-*` linter rules and for the API-correctness agent. Every entry
 was checked against Qt 5.15.2 public headers (`<qt>/include/QtCore`, `QtGui`,
 `QtWidgets`) and against `<qt>/lib/cmake/Qt5*`. A match is a **compile error or a

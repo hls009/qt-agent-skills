@@ -1,5 +1,7 @@
 # Common LLM mistakes — pre-flight checklist
 
+<!-- check-skills: allows-qt6-counterexamples -->
+
 This is the bias-correction layer. Mainstream LLMs emit the mistakes below by default when
 generating Qt 5 CMake, because their training data is dominated by Qt 6 documentation.
 Before returning the final output, check the draft against every item here.

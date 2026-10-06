@@ -1,5 +1,7 @@
 # Qt 5 CMake deltas — what must never appear, and the Qt 5 form
 
+<!-- check-skills: allows-qt6-counterexamples -->
+
 The training bias in Qt CMake is Qt 6. Most Qt 6 commands do not merely behave
 differently in Qt 5 — they are **undefined**, so configuration stops with
 `Unknown CMake command`, which does not mention Qt at all.
