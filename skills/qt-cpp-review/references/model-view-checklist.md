@@ -107,8 +107,9 @@ subset as `MDL-*`.
   own selection model for the same view ends up with two competing ones.
 - **MV-30**: `QTableView::setColumnWidth`/`horizontalHeader()->setSectionResizeMode`
   conflict with `resizeColumnsToContents()` — pick a policy. In Qt 5 the enum spelling is
-  `QHeaderView::ResizeMode` (`QHeaderView::Interactive`, `…::Stretch`) — the Qt 6
-  `QHeaderView::ResizeMode::Interactive` scoped form is not available.
+  `QHeaderView::ResizeMode` (`QHeaderView::Interactive`, `QHeaderView::Stretch`) — the
+  enum is unscoped, so the nested form `QHeaderView::ResizeMode::Interactive` is not a
+  spelling to use.
 - **MV-31**: Item views with very large models: `setUniformItemSizes(true)`,
   `setVerticalScrollMode(QAbstractItemView::ScrollPerPixel)` only when heights are
   uniform, and avoid `resizeRowsToContents()` on every data change (it walks every row).

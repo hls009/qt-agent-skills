@@ -33,7 +33,7 @@ proxy models, delegate expectations. Details in
   column, `setSourceModel()` after configuration, `sortRole()` left at
   `Qt::DisplayRole` when the model's sort data lives in another role, or
   `setDynamicSortFilter(true)` kept on when every mutation already calls
-  `invalidateFilter()`/`invalidateRows()`.
+  `invalidateFilter()`/`invalidate()`.
 - `QPersistentModelIndex` used as a long-term handle without checking `isValid()`,
   or `QModelIndex` cached across a structural change.
 

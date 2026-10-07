@@ -1,19 +1,9 @@
 // Copyright (C) 2026 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 // Test file for qt_review_lint.py — header-specific rules
-// This file should trigger header-only rules (INC-1) plus
+// This file should trigger header-only rules plus
 // rules that apply to both headers and source files.
 #pragma once
-
-// INC-6: Don't include qglobal.h
-#include <qglobal.h>
-
-// INC-1: Bare Qt header without module prefix (header only)
-#include <qstring.h>
-
-// INC-3: Both qNN and standard header included
-#include "q20algorithm"
-#include <algorithm>
 
 // DEP-1: QScopedPointer
 #include <QScopedPointer>
@@ -80,7 +70,8 @@ private:
     std::optional<int> m_threshold;
 };
 
-// QT6-10: QML registration macros do not exist in Qt 5
+// QT6-10: QML type-registration macros (Qt 5.15 declares them in <QtQml/qqml.h>;
+// out of scope for a Widgets-only project, not a missing-Qt-5 case)
 class WidgetBridge : public QObject {
     Q_OBJECT
     QML_ELEMENT

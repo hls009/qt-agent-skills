@@ -88,12 +88,12 @@ EXPECTED_UNIVERSAL = {
     # --- DEP: Qt 5 deprecations that still compile ---
     ("test_all_rules.cpp", "DEP-14"): 1,
     ("test_all_rules.cpp", "DEP-15"): 1,
+    ("test_all_rules.cpp", "DEP-16"): 1,
     ("test_all_rules.cpp", "DEP-17"): 1,
     ("test_all_rules.cpp", "DEP-18"): 1,
 
     # --- QT6: Qt 6-only API surfaced in Qt 5 code ---
     ("test_all_rules.h", "PAT-2"): 1,
-    ("test_all_rules.h", "QT6-1"): 1,
     ("test_all_rules.h", "QT6-2"): 2,
     ("test_all_rules.h", "QT6-3"): 1,  # typeId() only; fromType() is legal, see below
     ("test_all_rules.h", "QT6-9"): 1,

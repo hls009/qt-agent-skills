@@ -306,4 +306,8 @@ void deprecatedButQt5()
     // DEP-15: QDesktopWidget deprecated since Qt 5.11
     QDesktopWidget *desktopWidget = QApplication::desktop();
     Q_UNUSED(desktopWidget);
+
+    // DEP-16: QTextCodec is still present in Qt 5, just not the default path
+    QTextCodec *codec = QTextCodec::codecForName("UTF-8");
+    Q_UNUSED(codec);
 }

@@ -66,6 +66,10 @@ runtime failure a compile error teaches the reader that Qt 5 is smaller than it 
 | `configure` | CMake stops before any compiler runs — `Unknown CMake command`, or no such imported target |
 | `metatype-runtime` | `moc` accepts it and the build links; the meta-object cannot carry the value, so it fails at run time |
 
+A scope claim fails nothing at build time: Qt 5 declares the symbol in a module this
+skill set does not link, so the build succeeds and is wrong. Its severity cell is `-`
+and the row text says so (QT6-10, QT6-16, QT6-17).
+
 | ID | Qt 6 construct (absent from Qt 5) | Severity | Qt 5 replacement |
 |----|--------------------------------|----------|------------------|
 | QT6-1 | `q20::…`, `#include <qNN…>` (`q20algorithm`, `q20memory`) | compile | the real standard headers (`<algorithm>`, `<memory>`, `<utility>`) and `std::` directly |
@@ -77,14 +81,14 @@ runtime failure a compile error teaches the reader that Qt 5 is smaller than it 
 | QT6-7 | `QString::compareIgnoringCase()` | compile | `QString::compare(other, Qt::CaseInsensitive)` |
 | QT6-8 | `styleHints()->colorScheme()` | compile | no light/dark query in Qt 5: derive from palette colours, or ship an explicit QSS theme switch |
 | QT6-9 | `Q_PROPERTY(std::optional/variant/pair/function …)` | metatype-runtime | bool + value pair, sentinel value, or plain accessor; keep `std::optional` in non-moc members and functions. Note the failure mode: `moc` accepts it, the build links, and `QMetaProperty::read()` warns `Unable to handle unregistered datatype` |
-| QT6-10 | `QML_ELEMENT`, `QML_NAMED_ELEMENT`, `QML_EXTENDED`, `QML_ANONYMOUS`, `QML_SINGLETON`, `QML_UNCREATABLE`, `QML_FOREIGN`, `QML_INTERFACE` <!-- check-skills: scope claim --> | compile | scope, not existence: Qt 5.15 declares these in `<QtQml/qqml.h>`. A Widgets-only project does not link QtQml, so expose the class to C++ callers directly |
+| QT6-10 | `QML_ELEMENT`, `QML_NAMED_ELEMENT`, `QML_EXTENDED`, `QML_ANONYMOUS`, `QML_SINGLETON`, `QML_UNCREATABLE`, `QML_FOREIGN`, `QML_INTERFACE`, `QML_DECLARE_TYPEINFO` <!-- check-skills: scope claim --> | - | scope, not existence: Qt 5.15 declares these in `<QtQml/qqml.h>`. A Widgets-only project does not link QtQml, so expose the class to C++ callers directly |
 | QT6-11 | `QProperty<T>`, `QBindable<T>`, `QUntypedProperty`, `QPropertyWatcher` | compile | `Q_PROPERTY` with `READ`/`WRITE`/`NOTIFY`, or plain C++ members |
 | QT6-12 | `QLocalTime`, `QDayTime`, `QSizeMetrics`, `QNativeInterface`, `QEventPoint`, `QSinglePointEvent` | compile | `QDate`/`QTime`/`QDateTime`/`QTimeZone`, `QSize` + metrics, `QWindow`-level platform APIs, `QTouchEvent::TouchPoint` |
 | QT6-13 | `Qt::AA_EnableHighDpiWindowScaler` | compile | `Qt::AA_EnableHighDpiScaling` (5.6), `Qt::AA_UseHighDpiPixmaps` (5.6), `QGuiApplication::setHighDpiScaleFactorRoundingPolicy()` |
-| QT6-14 | `qt_standard_project_setup`, `qt_add_executable`, `qt_add_library`, `qt_add_qml_module`, `qt_add_translations`, `qt_add_shaders`, `qt_add_plugin`, `qt_policy` | configure | Qt 5 CMake forms (see the CMake project skill's own delta table) |
+| QT6-14 | `qt_standard_project_setup`, `qt_add_executable`, `qt_add_library`, `qt_add_qml_module`, `qt_add_translations`, `qt_add_shaders`, `qt_add_plugin`, `qt_policy`, `qt_deploy_qml_imports` | configure | Qt 5 CMake forms: `add_executable` + `target_link_libraries(... Qt5::<Module>)`, and the `qt5_add_*` macros (`qt5_add_resources`, `qt5_add_translation`, in `Qt5CoreMacros.cmake` / `Qt5LinguistToolsMacros.cmake`) |
 | QT6-15 | `Qt6::` targets, `find_package(Qt6`, `NAMES Qt6 Qt5` | configure | `Qt5::<Module>` and `find_package(Qt5 REQUIRED COMPONENTS …)` |
-| QT6-16 | `QML_FILES`, `qmldir`, `"...qml"` in build files | configure | `.ui` forms and C++ widgets |
-| QT6-17 | `Qt5::Qml`, `Qt5::Quick`, `Qt5::QuickControls2`, `Qt5::QuickWidgets`, `Qt5::QuickShapes`, `Qt5::QmlModels` <!-- check-skills: scope claim --> | configure | scope, not existence: Qt 5.15 ships these targets. `Qt5::Widgets` plus the module actually needed (`Svg`, `Charts`, `OpenGL`…); a Widgets-only project must not link the Qt Quick stack |
+| QT6-16 | `QML_FILES`, `qmldir`, `"...qml"` in build files | - | out of scope: `QML_FILES`/`qmldir` wiring belongs to a QML build; this project is Qt Widgets only, so the build has no QML asset step |
+| QT6-17 | `Qt5::Qml`, `Qt5::Quick`, `Qt5::QuickControls2`, `Qt5::QuickWidgets`, `Qt5::QuickShapes`, `Qt5::QmlModels` <!-- check-skills: scope claim --> | - | scope, not existence: Qt 5.15 ships these targets. `Qt5::Widgets` plus the module actually needed (`Svg`, `Charts`, `OpenGL`…); a Widgets-only project must not link the Qt Quick stack |
 
 QT6-14…17 fire only when the linter is given `CMakeLists.txt` or `*.cmake` input, so a
 `.cpp` mentioning a command name in a comment stays quiet.
@@ -99,7 +103,7 @@ job.
 
 | Symbol | Status in Qt 5.15 |
 |--------|---------------------|
-| `QStringView` | present (`<QtCore/QStringView>`, since Qt 5.15) |
+| `QStringView` | present (`<QtCore/QStringView>`, since Qt 5.10) |
 | `qsizetype` | typedef'd in `qglobal.h`; note Qt 5 containers still take and return `int`, so loop counters over `.size()` should be `int` |
 | `Qt::SkipEmptyParts`, `Qt::KeepEmptyParts`, `Qt::SplitBehavior` | present (`qnamespace.h`, since Qt 5.14) — and `QString::SkipEmptyParts` is the *deprecated* spelling |
 | `QWheelEvent::position()`, `globalPosition()` | present; the `pos()`/`globalPos()` forms carry `QT_DEPRECATED_VERSION_X_5_15` here |

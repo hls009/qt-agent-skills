@@ -39,7 +39,7 @@ warnings the compiler emits; say so when reporting one.
 | Pattern | Prefer | Why |
 |---------|--------|-----|
 | `std::mutex` | `QMutex` (or `QReadWriteLock`) | `QMutex` is futex-backed and integrates with `QMutexLocker`; exception: `std::mutex` + `std::condition_variable` is cheaper than `QMutex` + `QWaitCondition` |
-| `std::optional` in `Q_PROPERTY`, signals, slots | a bool + value pair, or a `std::optional` member behind a plain accessor | Qt 5's `moc` has no metatype registration for `std::optional`/`std::variant`/`std::pair`; the property or queued signature will not build (QT6-9). Ordinary C++ functions taking `std::optional` are fine |
+| `std::optional` in `Q_PROPERTY`, signals, slots | a bool + value pair, or a `std::optional` member behind a plain accessor | Qt 5's `moc` accepts the declaration and the build links, but it has no metatype registration for `std::optional`/`std::variant`/`std::pair`: `QMetaProperty::read()` warns `Unable to handle unregistered datatype` and yields an invalid QVariant — a run-time failure, not a build error (QT6-9). Ordinary C++ functions taking `std::optional` are fine |
 | `std::optional::value()` | `*opt`, `opt->member`, `if (opt)` | `value()` throws, which is invisible at the call site and fatal in a slot |
 | `std::optional<T> x;` (default ctor) | `std::optional<T> x = std::nullopt;` | silences a known GCC maybe-unused diagnostic |
 | `std::holds_alternative<T>` + `get<T>` | `std::get_if<T>` or `std::visit` | avoids the double check and Coverity false positives |

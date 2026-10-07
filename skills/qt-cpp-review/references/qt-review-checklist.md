@@ -42,6 +42,12 @@ cite is readable in the skill.
 - **PAT-15**: `noexcept` on a function containing `Q_ASSERT` — `noexcept` terminates
   on throw; the two do not mix.
 
+## Value class conventions
+
+- **VAL-5**: `qSwap()` — prefer a member `swap()`, `qt_ptr_swap`, or
+  `std::swap()`; the Qt helper predates the standard ones and adds nothing
+  in C++11 code.
+
 ## API & Naming
 
 - **API-3**: Check naming consistency with similar Qt classes
@@ -57,6 +63,9 @@ cite is readable in the skill.
 
 ## Includes
 
+- **INC-2**: Standard C++ headers before Qt headers —
+  `#include <vector>` then `#include <QtCore/QObject>`; reorder by
+  descending specificity.
 - **INC-4**: Include everything needed in-size (Lakos). Don't
   rely on transitive includes.
 
