@@ -108,7 +108,9 @@ Table: Property | Type | READ | WRITE | NOTIFY | Description. One row per `Q_PRO
 blank column when the macro omits it. Describe what the property *controls*, not just what
 the getter returns; mark read-only properties; enumerate accepted values when the type is
 an enum. Note explicitly when a property exists to be read by a stylesheet (`QSS`) or by
-`QPropertyAnimation` — those are the two Qt 5 consumers that make a property load-bearing.
+`QPropertyAnimation` — either makes it load-bearing; the full consumer set is the
+meta-object API, `QPropertyAnimation`, stylesheets, and `QDataWidgetMapper` (see the
+Q_PROPERTY section of `references/widgets-doc-recipes.md`).
 
 ### 5. Enumerations (Q_ENUM / Q_FLAG) *(if applicable)*
 Table: Value | Integer | Description, one row per enumerator including sentinels (label

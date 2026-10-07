@@ -69,14 +69,9 @@ code a compile error.
    `int`), `Qt::AA_EnableHighDpiWindowScaler`, functor-only `QMetaObject::invokeMethod`
    argument order, `QUuid::toBytes()`, `QString::compareIgnoringCase()`.
 
-3. **Do not claim these are missing** (each does exist in Qt 5.15.2, verified in headers):
-   `QStringView`, `qsizetype` as a type name, `Qt::SkipEmptyParts`, `QTimer::callOnTimeout`,
-   `QWheelEvent::position()`/`globalPosition()`, `QColor::name(QColor::NameFormat)`,
-   `QIcon::name()`, `QDeadlineTimer`, `QOperatingSystemVersion`, `QRandomGenerator`,
-   `QScopeGuard`, `QTimeZone`, `QNetworkRequest::setTransferTimeout()`,
-   `QFontMetrics::horizontalAdvance()`, `QProxyStyle`, `QStyleFactory`,
-   `QApplication::setStyle()`, `QApplication::setStyleSheet()`,
-   `QCoreApplication::addLibraryPath()`.
+3. **Do not claim these are missing** — the do-not-flag table at the end of this file
+   lists the Qt 6-era names that do exist in Qt 5.15.2 (verified in headers); a name
+   that is not in that table is not a verified Qt 5 symbol.
 
 4. **Version annotations use one form**, only where a member really arrived late in Qt 5:
 
@@ -109,3 +104,24 @@ If the repository already documents Qt 6-only API as if it were Qt 5, that is a 
 reporting in one line in the response — "the existing `Foo.md` documents `QProperty<int>`
 bindings, which Qt 5 does not have" — and then documenting the class as it actually is. Do
 not silently preserve the wrong claim, and do not rewrite unrelated docs while you are there.
+
+## Qt 5 API that exists — do not flag
+
+Models learn these as "Qt 6 only" and then document them as missing; each row exists in
+the Qt 5.15 headers and was checked there. A row that is wrong here hides a real Qt 6
+API, so the repository's content check re-verifies this table against a real kit.
+
+| Symbol | Status in Qt 5.15 |
+|--------|-------------------|
+| `QStringView` | present (`<QtCore/QStringView>`, since Qt 5.10) |
+| `qsizetype` | present as a type name (`qglobal.h`); Qt 5 containers still take and return `int` |
+| `Qt::SkipEmptyParts` | present (`qnamespace.h`, since 5.14) |
+| `QTimer::callOnTimeout(...)` | present (`qtimer.h`) |
+| `QWheelEvent::position()`, `globalPosition()` | present; the `pos()`/`globalPos()` forms carry `QT_DEPRECATED_VERSION_X_5_15` here |
+| `QColor::name(QColor::NameFormat)` | present (`qcolor.h`) |
+| `QIcon::name()` | present (`qicon.h`) |
+| `QDeadlineTimer`, `QOperatingSystemVersion`, `QRandomGenerator`, `QScopeGuard`, `QTimeZone` | present |
+| `QNetworkRequest::setTransferTimeout()` | present (`qnetworkrequest.h`) |
+| `QFontMetrics::horizontalAdvance()` | present (`qfontmetrics.h`); `width()` is the deprecated one |
+| `QProxyStyle`, `QStyleFactory` | present (`qproxystyle.h`, `qstylefactory.h`) |
+| `QApplication::setStyle()`, `setStyleSheet()`, `QCoreApplication::addLibraryPath()` | present (static members; `setStyleSheet` is inherited from `QWidget`) |
