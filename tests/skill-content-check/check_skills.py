@@ -226,6 +226,11 @@ CORE_BANS_HEADING = "## Core bans"
 # Ban rows whose subject is a *combination*, not a symbol: QT6-9 bans
 # Q_PROPERTY of a std::optional, and both halves are legal Qt 5 on their own.
 BANNED_COMBINATIONS = {"QT6-9"}
+# A ban row may declare itself a scope claim instead of an existence claim, which is
+# the correct framing for API Qt 5 ships in a module this skill set does not link (the
+# QML type-registration macros live in <QtQml/qqml.h>). Scope is owned by
+# qt5-scope-symbols.txt, which asserts the other direction: these DO exist.
+SCOPE_ROW_MARKER = "<!-- check-skills: scope claim -->"
 
 # ---------------------------------------------------------------------------
 # Qt 5 existence registers
@@ -741,7 +746,7 @@ def check_severity_definition(skills: list, rep: Reporter) -> None:
         if not path.is_file():
             continue
         text = path.read_text(encoding="utf-8")
-        if "Severity" in text and not ALLOWED_SEVERITIES <= set(re.findall(r"\w+", text)):
+        if "Severity" in text and not ALLOWED_SEVERITIES <= set(re.findall(r"[\w-]+", text)):
             rep.add(path, 0, "SEVERITY",
                     "the Severity column is defined without naming all three failure classes")
 
@@ -1002,6 +1007,8 @@ def claim_rows(path: Path):
         if len(cells) >= 3 and re.fullmatch(r"QT6-[0-9]+", cells[1] or ""):
             if cells[1] in BANNED_COMBINATIONS:
                 continue
+            if SCOPE_ROW_MARKER in line:
+                continue    # an explicit scope claim; qt5-scope-symbols.txt owns it
             yield lineno, RE_QT_TOKEN.findall(cells[2]), "absent"
             continue
         if in_do_not_flag and line.lstrip().startswith("|"):
