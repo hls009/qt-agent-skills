@@ -77,6 +77,31 @@ python3 skills/qt-cpp-review/references/lint-scripts/qt_review_lint.py wheel.cpp
 
 ---
 
+## Resolution status (updated when the fix commits landed)
+
+| Item | Fixed in | Note |
+|------|----------|------|
+| P0-01 | `refactor(qt-cpp-docs, qt-cmake-project)` | claim reversed; limits (no signals on a gadget, gadget accessors) documented |
+| P0-02, P0-03 | `refactor(qt-cpp-review)` prose | `QIcon::setName()` moved to the ban side, `sizeIgnoringMargins()` deleted (no Qt declares it) |
+| P0-04 … P0-10 | `refactor(qt-ui-design)` | all seven rewritten against 5.15.2 headers; the four measured ones recorded in that skill's evidence section |
+| P0-11 | `refactor(qt-cpp-review)` prose | model-view-checklist now names only `invalidate()`/`invalidateFilter()` |
+| P0-12 | `refactor(qt-cpp-docs, qt-cmake-project)` | rule 9 split into absent / out-of-scope / per-kit |
+| P0-13 | `refactor(qt-cpp-review)` prose | framework checklist ported to Qt 5 spellings |
+| P0-14, P0-15 | `refactor(qt-cpp-review)` linter commit | regex fixed; QT6-4 became a context rule; Test 4 locks both |
+| P0-16 | `refactor(qt-cpp-review)` | severity taxonomy `compile` / `configure` / `metatype-runtime` |
+| P0-17, P0-18 | `refactor(qt-cpp-review)` + linter commit | real macro names, scope framing, `qt5-scope-symbols.txt` |
+| P0-19 | `refactor(qt-cpp-review)` linter + prose | mitigations name their class |
+| P1-01 … P1-05, P1-08 … P1-10 | `test(check-skills)` + `docs(README)` + prose commits | totals derived, `VAR`/`FW` documented, FW id space, README trees completed, Python 3.7, phase wording, `QGuiApplication` attribution |
+| P1-06, P1-07 | `docs(README)` | C++ baseline split into convention vs requirement; the "do not flag" list exists once, in the review skill |
+| P2-01, P2-03 | `refactor(qt-cpp-review)` | neutral argument wording; the stale CMake-file signal removed |
+| P2-02 | `docs(README)` R7 | frontmatter keys documented as optional extras |
+| P2-04 | `refactor(qt-cpp-review)` linter | "100x faster" → measured ~80-100x with the reason |
+
+Final state: `check_skills.py --isolate` reports **0 findings** and `run_tests.py` passes all
+four modes (82/82 universal, 7/7 framework, gate, legal-code). One item is deliberately left
+manual: R4 behaviour claims, which need a compiler — the registers and Test 4 cover what can
+be checked from text.
+
 ## P0 — claims that mislead the user or make the linter flag valid Qt 5 code
 
 ### P0-01 · `Q_GADGET` + `Q_PROPERTY` — the ban is simply false
@@ -95,7 +120,7 @@ python3 skills/qt-cpp-review/references/lint-scripts/qt_review_lint.py wheel.cpp
 - **What is genuinely missing in Qt 5:** a gadget cannot declare signals — `NOTIFY` on a gadget
   property compiles to an undefined signal (`undefined reference to G4::changed()`) (R) — and
   `QMetaProperty::read/write` take `QObject*`, so the gadget variants are the ones to use.
-- **Fix:** reverse the guidance. Document gadget properties as ordinary properties; keep the two
+- **Fix (applied):** reverse the guidance. Document gadget properties as ordinary properties; keep the two
   real limits (no `NOTIFY`/signals on a gadget; use `readOnGadget`/`writeOnGadget`, not
   `property()`), and delete the "flag it as a porting hazard" instruction — it makes the docs
   skill mis-report legal Qt 5.15 code.
@@ -108,13 +133,13 @@ python3 skills/qt-cpp-review/references/lint-scripts/qt_review_lint.py wheel.cpp
 - **Evidence:** `QIcon` in 5.15.2 declares `QString name() const;` only (H);
   `QIcon().setName("x")` → `error: 'class QIcon' has no member named 'setName'` (R).
 - **Impact:** a "do not flag" row is a suppression list — this one hides a genuine Qt 6.4 API.
-- **Fix:** row becomes `QIcon::name()` — present; `QIcon::setName()` — Qt 6, not available.
+- **Fix (applied):** row becomes `QIcon::name()` — present; `QIcon::setName()` — Qt 6, not available.
 
 ### P0-03 · `sizeIgnoringMargins()` listed as present
 - **Where:** `skills/qt-cpp-review/references/qt515-deltas.md:89`.
 - **Evidence:** token absent from every 5.15.2 public header (H) and from 5.15.2 docs (D);
   `QSize(1,1).sizeIgnoringMargins(QMargins())` → `no member named 'sizeIgnoringMargins'` (R).
-- **Fix:** drop the symbol; keep `horizontalAdvance()` (verified present, H) and say what
+- **Fix (applied):** drop the symbol; keep `horizontalAdvance()` (verified present, H) and say what
   `width()` deprecation is (`QT_DEPRECATED_X("Use QFontMetrics::horizontalAdvance")`, H).
 
 ### P0-04 · "QSS font shorthand is not supported"
@@ -123,7 +148,7 @@ python3 skills/qt-cpp-review/references/lint-scripts/qt_review_lint.py wheel.cpp
   in `qtwidgets/stylesheet-reference.html` (D); at runtime
   `QPushButton{font: bold 14pt "Arial"}` → `font().bold()==true, pointSize()==14,
   family()=="Arial"`, zero stylesheet warnings (R).
-- **Fix:** the shorthand works. The real Qt 5 caveat to keep is propagation: a widget does not
+- **Fix (applied):** the shorthand works. The real Qt 5 caveat to keep is propagation: a widget does not
   inherit QSS font/palette from its parent unless
   `QCoreApplication::setAttribute(Qt::AA_UseStyleSheetPropagationInWidgetStyles)` is set before
   the app object (attribute verified in `qnamespace.h:549`, H; text verified in
@@ -133,7 +158,7 @@ python3 skills/qt-cpp-review/references/lint-scripts/qt_review_lint.py wheel.cpp
 - **Where:** `skills/qt-ui-design/references/styling-and-palette.md:35`.
 - **Evidence:** absent from `qpalette.h` (H); compiler suggests `resolve` (R).
   Qt 5 has `QPalette resolve(const QPalette &) const;` (`qpalette.h:161`, H).
-- **Fix:** use `QPalette::resolve()` and describe the mask semantics without inventing an API.
+- **Fix (applied):** use `QPalette::resolve()` and describe the mask semantics without inventing an API.
 
 ### P0-06 · `QApplication::iconSize()` / `QWidget::setIconSize()` — neither exists
 - **Where:** `skills/qt-ui-design/references/styling-and-palette.md:139-141`.
@@ -143,20 +168,20 @@ python3 skills/qt-cpp-review/references/lint-scripts/qt_review_lint.py wheel.cpp
   `QAbstractButton::setIconSize` (hence `QToolButton`/`QPushButton`), `QComboBox`,
   `QTabBar`/`QTabWidget`, `QAbstractItemView::setIconSize` + its `Q_PROPERTY` (H), and style
   metrics `QStyle::PM_ButtonIconSize` / `PM_SmallIconSize` / `PM_LargeIconSize` (`qstyle.h:549-561`, H).
-- **Fix:** rewrite the bullet around `QMainWindow::setIconSize()` (toolbars/docks) + per-widget
+- **Fix (applied):** rewrite the bullet around `QMainWindow::setIconSize()` (toolbars/docks) + per-widget
   `setIconSize()` + style metrics.
 
 ### P0-07 · QSS sub-control `::add-sub-page`
 - **Where:** `skills/qt-ui-design/references/styling-and-palette.md` (Scroll bars bullet).
 - **Evidence:** Qt 5 sub-control names include `add-page`, `sub-page`, `add-line`, `sub-line` —
   no `add-sub-page` (`libQt5Widgets` name table, H/R).
-- **Fix:** `::add-page` / `::sub-page`.
+- **Fix (applied):** `::add-page` / `::sub-page`.
 
 ### P0-08 · `QPainter::Text Antialiasing`, `QFont::NoHinting`
 - **Where:** `skills/qt-ui-design/references/painting-and-custom-widgets.md:33-34`.
 - **Evidence:** real spellings `QPainter::TextAntialiasing` (`qpainter.h:89`, H) and
   `QFont::PreferNoHinting` (`qfont.h:95`, H).
-- **Fix:** correct both names (the advice itself stands).
+- **Fix (applied):** correct both names (the advice itself stands).
 
 ### P0-09 · `QSizePolicy::HeightForWidth`
 - **Where:** `skills/qt-ui-design/references/painting-and-custom-widgets.md:107`.
@@ -164,13 +189,13 @@ python3 skills/qt-cpp-review/references/lint-scripts/qt_review_lint.py wheel.cpp
   the Qt 5 mechanism is `QSizePolicy::setHeightForWidth(true)` / `hasHeightForWidth()`
   (`qsizepolicy.h:141-142`, H) alongside the `QWidget::heightForWidth()`/`hasHeightForWidth()`
   virtuals (`qwidget.h:521-522`, H).
-- **Fix:** "override `heightForWidth()` and set `policy.setHeightForWidth(true)`; a policy without
+- **Fix (applied):** "override `heightForWidth()` and set `policy.setHeightForWidth(true)`; a policy without
   the flag makes the override dead code."
 
 ### P0-10 · delegate bullet names non-existent API (`editorStyle()`, `StyledEditor`/`NoEditor`/`FullEditor`)
 - **Where:** `skills/qt-ui-design/references/painting-and-custom-widgets.md:141-143`.
 - **Evidence:** all absent from 5.15.2 public headers (H) and docs (D).
-- **Fix:** say what Qt 5 actually does: `updateEditorGeometry(editor, option, index)` places the
+- **Fix (applied):** say what Qt 5 actually does: `updateEditorGeometry(editor, option, index)` places the
   editor in the view's viewport coordinates using the `QStyleOptionViewItem` it is handed, and
   `QStyledItemDelegate::initStyleOption(QStyleOptionViewItem*, const QModelIndex&)` is what fills
   that option (`qstyleditemdelegate.h:67/80/91`, H).
@@ -180,7 +205,7 @@ python3 skills/qt-cpp-review/references/lint-scripts/qt_review_lint.py wheel.cpp
 - **Evidence:** `QSortFilterProxyModel` in 5.15.2 has `invalidate()` and `invalidateFilter()`
   (and deprecated `clear()`/`filterChanged()`), but **no** `invalidateLayout()` (H).
   The row's other half — "`invalidateRows()` is Qt 6" — is correct (H).
-- **Fix:** drop `invalidateLayout()`; add the Qt 5 refresh path for layout changes
+- **Fix (applied):** drop `invalidateLayout()`; add the Qt 5 refresh path for layout changes
   (`layoutAboutToBeChanged`/`layoutChanged`, or `QTableView::sortByColumn`/`reset`-free re-filter).
 
 ### P0-12 · `qt-cmake-project` states non-existence for two things Qt 5.15.2 ships
@@ -191,7 +216,7 @@ python3 skills/qt-cpp-review/references/lint-scripts/qt_review_lint.py wheel.cpp
   `qt5_import_qml_plugins`/`qt_import_qml_plugins` are defined in
   `lib/cmake/Qt5QmlImportScanner/Qt5QmlImportScannerConfig.cmake` (C). By contrast
   `Qt5::CanvasPainter` and `Qt5::WidgetsExtras` genuinely do not exist (C) — those examples are fine.
-- **Fix:** split existence claims from scope claims: "these exist in Qt 5 but are Qt Quick
+- **Fix (applied):** split existence claims from scope claims: "these exist in Qt 5 but are Qt Quick
   plumbing — a Widgets-only project must not link or call them". Keep `CanvasPainter` /
   `WidgetsExtras` as the invented-name examples. Rewrite rule 9's "no `Qt5::QuickControls2` in
   Widgets terms" the same way.
@@ -204,7 +229,7 @@ python3 skills/qt-cpp-review/references/lint-scripts/qt_review_lint.py wheel.cpp
   Qt 5 spellings: `Q_DECLARE_METATYPE` + `qRegisterMetaType<T>()` (FW-VAL-5 already says this ✓),
   plain `const`/`constexpr` (no `Q_CONSTINIT`), `explicit` (no `Q_IMPLICIT`),
   `Q_DECLARE_TYPEINFO(T, Q_MOVABLE_TYPE)` / `Q_COPYSIGN`-free value-class mechanics (H).
-- **Fix:** port these four rows down to Qt 5; delete any row whose only content is Qt 6 contributor
+- **Fix (applied):** port these four rows down to Qt 5; delete any row whose only content is Qt 6 contributor
   policy. Full-file Qt-token re-sweep to be run after the edit (tooling already available).
 
 ### P0-14 · QT6-3 flags `QMetaType::fromType<T>()`, which Qt 5.15.2 has
@@ -215,7 +240,7 @@ python3 skills/qt-cpp-review/references/lint-scripts/qt_review_lint.py wheel.cpp
   (`QMetaType::fromType<QString>()`) emits `QT6-3 … Qt 6 meta-type API` (R).
   The row's other two symbols are correctly absent: `QMetaType::Id` (Qt 5 uses `enum Type`) and
   `QVariant::typeId()` (H, R).
-- **Fix:** remove the `fromType` branch from the regex and from all prose; keep `typeId()`/`QMetaType::Id`;
+- **Fix (applied):** remove the `fromType` branch from the regex and from all prose; keep `typeId()`/`QMetaType::Id`;
   add `QMetaType::fromType<T>()` to the "legal in Qt 5.15 — do not flag" table with the 5.15.2 line
   reference. Fixture/expectation updates in the same commit.
 
@@ -225,7 +250,7 @@ python3 skills/qt-cpp-review/references/lint-scripts/qt_review_lint.py wheel.cpp
 - **Evidence:** `void wheelEvent(QWheelEvent *event) { … event->position() … }` emits `QT6-4` (R),
   because the regex decides by variable *name* (`mouse|mouseEvent|ev|event`) not by event type;
   `QWheelEvent::position()/globalPosition()` are present in 5.15.2 `qevent.h` (H).
-- **Fix:** convert QT6-4 to the existing Tier-B context mechanism — suppress when the surrounding
+- **Fix (applied):** convert QT6-4 to the existing Tier-B context mechanism — suppress when the surrounding
   window mentions `QWheelEvent`/`wheelEvent` (and keep `QMouseEvent::position()` detection). Add a
   fixture asserting the wheel case does **not** fire.
 
@@ -237,7 +262,7 @@ python3 skills/qt-cpp-review/references/lint-scripts/qt_review_lint.py wheel.cpp
   links with `-std=c++17` (R); failure is at runtime:
   `QMetaProperty::read: Unable to handle unregistered datatype 'std::optional<int>' for property
   'C::maybe'`, `QVariant` read returns invalid (R).
-- **Fix:** replace the two-valued severity with three: `compile` / `configure` / `metatype-runtime`;
+- **Fix (applied):** replace the two-valued severity with three: `compile` / `configure` / `metatype-runtime`;
   put QT6-9 (and any other runtime-only entry) in the third; keep "never a style opinion", which is
   still true — the failure class is wrong, not the severity.
 
@@ -256,7 +281,7 @@ python3 skills/qt-cpp-review/references/lint-scripts/qt_review_lint.py wheel.cpp
   project does not link". QT6-10's severity must therefore not be `compile` for a kit that has
   QtQml available; the honest class is scope + `configure` (missing link), and the rule's message
   already half-says this ("and QML is out of scope here").
-- **Fix:** move the QML macro list out of the "Qt 6-only C++ API" framing into the scope framing,
+- **Fix (applied):** move the QML macro list out of the "Qt 6-only C++ API" framing into the scope framing,
   name the real macros, and record them in `qt5-scope-symbols.txt` instead of
   `qt5-absent-symbols.txt`. `check_skills.py` reports these six today as `QTBAN`.
 
@@ -270,7 +295,7 @@ python3 skills/qt-cpp-review/references/lint-scripts/qt_review_lint.py wheel.cpp
   `QML_NAMED_ELEMENT` and `QML_EXTENDED` do not** (R) — the trailing `\b` makes the `NAMED`
   alternative fail to match `QML_NAMED_ELEMENT`. `check_skills.py`'s own `QT6_CODE_TOKENS` list had
   the same two wrong names, now corrected.
-- **Fix:** use the real macro set in the prose, the linter regex and the checker's token list; then
+- **Fix (applied):** use the real macro set in the prose, the linter regex and the checker's token list; then
   the ban both names existing API and actually catches it.
 
 ### P0-19 · a mitigation names Qt 5 API off the wrong class
@@ -282,7 +307,7 @@ python3 skills/qt-cpp-review/references/lint-scripts/qt_review_lint.py wheel.cpp
   the bare sentence is neither a clean Qt 6 ban nor a clean Qt 5 mitigation: it will be read as
   "any view has setCurrentRow", which is false, and a reviewer who greps for it finds a real
   symbol and concludes the skill is wrong.
-- **Fix:** name the class every time: on a view use `setCurrentIndex(model->index(row, col))`, or
+- **Fix (applied):** name the class every time: on a view use `setCurrentIndex(model->index(row, col))`, or
   `QTableView::selectRow()` / `selectColumn()` (both verified, H); `QDateTimeEdit::setCurrentSection()`
   is a legitimate Qt 5 member (H) and the row already says so — it should say it qualified.
 
@@ -338,13 +363,13 @@ carries the rationale but not the id. Fixing that is part of commit 4.
   `skills/qt-cpp-review/SKILL.md:6` says "80+ rules" (true but different granularity).
 - The neighbouring claim "`82 universal + 7 framework expectations`" (README:139) **is** correct —
   expectations are keyed by `(fixture, rule)` and repeat ids across files.
-- **Fix:** remove hard-coded totals from prose; derive and check them (see P1-02, P1-03).
+- **Fix (applied):** remove hard-coded totals from prose; derive and check them (see P1-02, P1-03).
 
 ### P1-02 · `VAR` category is undocumented but emitted
 - Linter docstring category list, `qt-cpp-review/README.md:20-21` and `SKILL.md` "Rule categories"
   all list 14 categories with no `VAR`; the linter emits `VAR-3` (`:700`), and
   `qt-review-checklist.md:36-38` documents `VAR-3`/`VAR-4`.
-- **Fix:** one derived category set, three consumers; add `VAR` (or re-home `VAR-3`).
+- **Fix (applied):** one derived category set, three consumers; add `VAR` (or re-home `VAR-3`).
 
 ### P1-03 · framework-mode ids collide with the checklist ids
 - Linter framework rules: `INC-1, INC-6, CND-2, VAL-6, PAT-6`. `qt-framework-checklist.md` uses
@@ -352,7 +377,7 @@ carries the rationale but not the id. Fixing that is part of commit 4.
   ("do not use the CamelCase form"); linter `VAL-6` (`Q_DECLARE_METATYPE`) is the checklist's
   **FW-VAL-5**, while `FW-VAL-6` is "move SMFs"; `PAT-6` (`make_unique<T[]>`) has **no** `FW-PAT`
   section at all.
-- **Fix:** re-name the five framework rule ids into the `FW-` space (`FW-INC-1`… chosen to match the
+- **Fix (applied):** re-name the five framework rule ids into the `FW-` space (`FW-INC-1`… chosen to match the
   checklist's meaning), update fixtures + `run_tests.py` expectations in the same commit, and make
   the checker assert "every framework id exists in `qt-framework-checklist.md`".
 
@@ -360,12 +385,12 @@ carries the rationale but not the id. Fixing that is part of commit 4.
 - `qt_review_lint.py:381,384` (`RE_HDR3_MINMAX`, `RE_HDR3_LIMITS`) and `:416,418`
   (`RE_ENM9_BOOL_PARAMS`, `RE_ENM9_BOOL_ARGS`) register two patterns per id; output cannot
   distinguish them and the count prose drifted because of it.
-- **Fix:** merge each pair into one `Rule` with a combined regex (ids unchanged, expectations unchanged).
+- **Fix (applied):** merge each pair into one `Rule` with a combined regex (ids unchanged, expectations unchanged).
 
 ### P1-05 · README "Files" lists are not the directory contents
 - `skills/qt-cpp-review/README.md` omits `agent-missions.md`, which `SKILL.md` Phase 2 requires.
   `skills/qt-cmake-project/README.md` omits `README.md`/`LICENSE.txt`, which the other three list.
-- **Fix:** checker derives the file set and compares to the README block (R9 below).
+- **Fix (applied):** checker derives the file set and compares to the README block (R9 below).
 
 ### P1-06 · C++ floor stated two ways
 - `README.md:31` "C++20 by default; C++17 is the floor" vs `qt-cmake-project/SKILL.md:170`
@@ -377,18 +402,18 @@ carries the rationale but not the id. Fixing that is part of commit 4.
 - `README.md:36-40` (6 symbols), `qt-cpp-review/README.md:41-45` (7), `SKILL.md:187-193` (8),
   `qt515-deltas.md:74-91` (14 rows). Membership differs, and two of the shorter lists were the
   vehicle for P0-02/P0-03.
-- **Fix:** the deltas table is the single source; other files reference it instead of re-listing.
+- **Fix (applied):** the deltas table is the single source; other files reference it instead of re-listing.
 
 ### P1-08 · Python floor overstated
 - `README.md:74`, `qt-cpp-review/README.md:19`, `SKILL.md` Phase 1 and the References bullet say
   **Python 3.6+**; `qt_review_lint.py` imports `dataclasses` → **3.7** is the real floor
   (annotations are safe only because of `from __future__ import annotations`).
-- **Fix:** state 3.7+ everywhere; checker pins the claim.
+- **Fix (applied):** state 3.7+ everywhere; checker pins the claim.
 
 ### P1-09 · internal contradiction in Phase language
 - `qt-cpp-review/SKILL.md:114` "Three phases. **Never skip a phase.**" vs `:118` "If Python is
   unavailable, warn and skip to Phase 2."
-- **Fix:** phrase the exception as a documented fallback of Phase 1, not a skipped phase.
+- **Fix (applied):** phrase the exception as a documented fallback of Phase 1, not a skipped phase.
 
 ### P1-10 · API attributed to the wrong class
 - `qt515-deltas.md` QT6-13 row and `qt-cmake-project/references/simple-project.md` write
@@ -396,7 +421,7 @@ carries the rationale but not the id. Fixing that is part of commit 4.
   **QGuiApplication** (`qguiapplication.h:159`, H). Calling it through `QApplication` still
   compiles (inherited static), so this is attribution, not breakage — but the skill set's whole
   point is naming the declaring class correctly.
-- **Fix:** attribute it to `QGuiApplication` in the prose; the register entry uses the qualified
+- **Fix (applied):** attribute it to `QGuiApplication` in the prose; the register entry uses the qualified
   base-class spelling so the checker accepts either form.
 
 ---
@@ -406,7 +431,7 @@ carries the rationale but not the id. Fixing that is part of commit 4.
 ### P2-01 · slash-command invocation in prose
 - `skills/qt-cpp-review/references/qt-framework-checklist.md:8`: "User passes `framework` argument:
   `/qt-cpp-review framework`" while every `SKILL.md` claims "No harness requirement".
-- **Fix:** "when the `framework` argument is passed"; add a checker rule for `/<skill-name> …` syntax.
+- **Fix (applied):** "when the `framework` argument is passed"; add a checker rule for `/<skill-name> …` syntax.
 
 ### P2-02 · frontmatter keys that belong to specific harnesses
 - `disable-model-invocation` (required by `check_skills.py`) and `metadata.argument-hint` are

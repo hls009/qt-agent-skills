@@ -42,10 +42,14 @@ Agentic skills for **Qt 5 Widgets** development with CMake, packaged in the port
 
 Anything that only exists in Qt 6 is out of scope by design, and each skill carries a table
 of it: Qt 6 CMake commands, Qt 6-only C++ API, and QML plumbing, with the Qt 5 form to use
-instead. Equally important, the tables record the Qt 6-era names that **already work** in Qt
-5.15 (`QStringView`, `Qt::SkipEmptyParts`, `QTimer::callOnTimeout`,
-`QWheelEvent::position()`, `QColor::name(QColor::NameFormat)`, `QIcon::name()`), so that a
-review does not raise false positives against them.
+instead. Equally important, the review skill's `references/qt515-deltas.md` records the
+Qt 6-era names that **already work** in Qt 5.15 (`QStringView`, `Qt::SkipEmptyParts`,
+`QMetaType::fromType<T>()`, `QTimer::callOnTimeout`, `QWheelEvent::position()`,
+`QColor::name(QColor::NameFormat)`, `QIcon::name()`), so a review does not raise false
+positives against them. That table is the only copy of that list in this repository, and
+`check_skills.py` verifies every row of it against a real Qt 5 installation — a
+suppression entry that is wrong hides a genuine Qt 6 API, which is why it is machine-checked
+rather than restated per file.
 
 ## Skills
 

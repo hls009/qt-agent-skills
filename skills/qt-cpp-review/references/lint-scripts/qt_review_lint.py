@@ -368,7 +368,8 @@ RULES_SIMPLE: list[Rule] = [
          ".count()/.length() \u2014 prefer .size() for std consistency",
          exclude=RE_DEP10_EXCLUDE),
     Rule("DEP-11", RE_DEP11_DATETIME,
-         "QDateTime::currentDateTime() \u2014 use currentDateTimeUtc() (100x faster, DST-stable)",
+         "QDateTime::currentDateTime() \u2014 use currentDateTimeUtc() where UTC is acceptable: "
+         "the local-time path does a tz lookup per call (measured ~80-100x on Linux, 5.15)",
          exclude=RE_DEP11_EXCLUDE),
     Rule("DEP-12", RE_DEP12_JAVA_ITER,
          "Java-style iterator \u2014 use STL iterators"),

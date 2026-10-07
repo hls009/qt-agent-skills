@@ -104,6 +104,8 @@ applied **before** the `QApplication` is constructed:
 ```cpp
 QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
 QCoreApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
+// declared on QGuiApplication (qguiapplication.h); reached through QApplication here
+// because a Widgets app constructs one anyway and it inherits the static.
 QApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
 ```
 
