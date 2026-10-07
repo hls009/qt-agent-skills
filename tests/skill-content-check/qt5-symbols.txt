@@ -5,8 +5,8 @@
 # A line that the kit does not declare is a finding: the skills would be telling
 # a reviewer to leave real Qt 6 code alone.
 #
-# Symbols here were verified on Qt 5.15.2 (msvc2019_64) — see
-# AUDIT-qt515-conformance-2026-10-06.md, section "Accepted as correct".
+# Symbols here were verified on Qt 5.15.2 (msvc2019_64); the audit trail that
+# recorded the evidence lives in the repository history.
 # Write the token exactly as the skill prose writes it, so a stale entry that no
 # skill mentions any more is reported as REGSTALE.
 
