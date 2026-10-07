@@ -13,6 +13,35 @@ that mode is requested.
 Qt 6-only API is a hard failure class here, not a style preference:
 see `qt515-deltas.md` and the linter's `QT6-*` rules.
 
+## Mechanical pattern checks (PAT-*)
+
+These are the ids the linter emits for mechanical C++ shapes. Rules without an id
+here are covered by the sections below; this list exists so every id a report can
+cite is readable in the skill.
+
+- **PAT-1**: `std::optional::value()` — throws at the call site and invisible in the
+  caller; use `*opt`, `opt->member`, `if (opt)`.
+- **PAT-2**: `std::optional<T>` default-constructed — write `= std::nullopt`
+  explicitly (silences a known GCC maybe-unused diagnostic).
+- **PAT-3**: `std::holds_alternative<T>` then `get<T>` — prefer `std::get_if<T>` or
+  `std::visit`, which check once instead of twice.
+- **PAT-5**: `Q_UNLIKELY` in front of `qWarning`/`qFatal` — redundant, the cold path
+  is already marked.
+- **PAT-7**: `QMap` — confirm ordered copying is needed; `std::map`/`QHash` are
+  usually what was meant.
+- **PAT-8**: `QMap` with pointer keys — pointer ordering is not a meaningful order;
+  use `QHash`.
+- **PAT-9**: `QList<QString>` — use `QStringList`.
+- **PAT-10**: `return std::move(x)` — pessimises NRVO; return plainly.
+- **PAT-11**: `QRegularExpression` constructed inside a loop — hoist it, compiling
+  the pattern is the expensive part.
+- **PAT-12**: non-const range-for reference over a Qt container — may detach; use
+  `const auto &` when the element is only read.
+- **PAT-14**: `std::sort` over `QString`s — case-sensitive ordering is rarely what a
+  UI wants; compare with `Qt::CaseInsensitive` or `QString::localeAwareCompare`.
+- **PAT-15**: `noexcept` on a function containing `Q_ASSERT` — `noexcept` terminates
+  on throw; the two do not mix.
+
 ## API & Naming
 
 - **API-3**: Check naming consistency with similar Qt classes
@@ -42,7 +71,6 @@ see `qt515-deltas.md` and the linter's `QT6-*` rules.
 
 - **MTH-1**: Inline methods: prefer defining in class body
   (skip `inline` keyword).
-
 ## Macros
 
 - **MAC-1**: Function-scope macros → `do {} while(false)`.

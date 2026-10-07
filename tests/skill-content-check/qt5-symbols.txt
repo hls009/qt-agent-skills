@@ -87,8 +87,6 @@ QNetworkRequest::setTransferTimeout
 # no usable NOTIFY (audit P0-01).
 QMetaProperty::readOnGadget
 QMetaProperty::writeOnGadget
-QMetaProperty::resetOnGadget
-QMetaMethod::invokeOnGadget
 
 # Members the ban tables refer to by the wrong class (audit P0-19): these exist in
 # 5.15, so a ban or a mitigation must name the class it means.

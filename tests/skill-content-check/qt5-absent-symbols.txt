@@ -42,11 +42,9 @@ QPalette::Accent
 QElapsedTimer::hasElapsed
 QAbstractItemView::setCurrentSection
 QAbstractItemView::setCurrentRow
-QAbstractItemView::setCurrentColumn
 QMetaType::Id
 QVariant::typeId
 QIcon::setName
-sizeIgnoringMargins
 invalidateLayout
 QPainter::useNativeRendering
 

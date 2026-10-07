@@ -18,30 +18,44 @@ commands are grep-able in three files.
 These lines are repeated verbatim in each skill's `qt515-deltas.md` so that a
 directory installed on its own still carries them.
 
-- No Qt 6 CMake API: `qt_standard_project_setup`, `qt_add_executable`,
+Each ban below is one of two kinds, and the kind has to be stated, because they tell a
+model different things. **Existence**: Qt 5 declares no such symbol, so the build fails.
+**Scope**: Qt 5 does declare it, in a module this skill set never links, so the build
+would succeed and be wrong. Mixing the two is how a review ends up calling valid Qt 5
+code a compile error.
+
+- No Qt 6 CMake API (existence): `qt_standard_project_setup`, `qt_add_executable`,
   `qt_add_library`, `qt_add_qml_module`, `qt_add_translations`, `qt_add_shaders`,
-  `qt_add_plugin`, `qt_deploy_qml_imports`, `qt_policy`, `QTP0001`.
+  `qt_add_plugin`, `qt_deploy_qml_imports`, `qt_policy`, `QTP0001`. None of these is a
+  macro or function anywhere under `<qt>/lib/cmake`.
 - No `Qt6::` link target, no `find_package(Qt6 …)`, no `find_package(QT NAMES Qt6 Qt5 …)` probe.
 - `find_package(Qt5 REQUIRED COMPONENTS <Modules>)` with **no version argument**; verify the
   module directory exists before using any `Qt5::<Module>` target.
-- No QML anywhere: no `.qml`, no `qmldir`, no `QML_FILES`, no `QML_IMPORT_PATH`, no
-  `Qt5::Qml`, `Qt5::Quick`, `Qt5::QuickControls2`, `Qt5::QuickWidgets`.
-- No Qt 6-only C++ API: `QProperty`/`QBindable`, `QAnyStringView`, `QByteArrayView`,
-  `QStringConverter`/`QStringDecoder`, `Qt::AA_EnableHighDpiWindowScaler`,
-  `QVariant::typeId()`, `QMetaType::fromType<T>()`, `QAbstractItemView::setCurrentSection()`,
+- No QML anywhere (scope): no `.qml`, no `qmldir`, no `QML_FILES`, no `QML_IMPORT_PATH`, no
+  `Qt5::Qml`, `Qt5::Quick`, `Qt5::QuickControls2`, `Qt5::QuickWidgets`. Qt 5.15 ships all of
+  them; a Widgets-only project does not link them.
+- No Qt 6-only C++ API (existence): `QProperty`/`QBindable`, `QAnyStringView`,
+  `QByteArrayView`, `QStringConverter`/`QStringDecoder`, `Qt::AA_EnableHighDpiWindowScaler`,
+  `QVariant::typeId()`, `QMetaType::Id`, `QAbstractItemView::setCurrentSection()`,
   `QUuid::toBytes()`, `QString::compareIgnoringCase()`, `QStyleHints::colorScheme()`,
-  `QNativeInterface::*`, `QDayTime`/`QLocalTime`/`QSizeMetrics`, `q20::` and `<q20…>` headers.
-- No QML registration macros on `QObject` classes: `QML_ELEMENT`, `QML_NAMED`,
-  `QML_EXTENDED_TYPE`, `QML_UNCREATABLE`, `QML_SINGLETON`.
-- Qt 5 `moc` cannot carry `std::optional`/`std::variant`/`std::pair` in a `Q_PROPERTY` or in a
-  signal or slot signature that crosses a queued connection.
+  `QIcon::setName()`,
+  `QNativeInterface::*`, `QDayTime`/`QLocalTime`/`QSizeMetrics`, `q20::` and `<qNN…>` headers.
+- No QML type registration (scope, not existence): `QML_ELEMENT`, `QML_NAMED_ELEMENT`,
+  `QML_EXTENDED`, `QML_ANONYMOUS`, `QML_SINGLETON`, `QML_UNCREATABLE`, `QML_FOREIGN` and
+  `QML_INTERFACE` are declared by Qt 5.15 itself, in `<QtQml/qqml.h>`. They are banned because
+  a Widgets-only project does not link QtQml — not because Qt 5 lacks them. `QML_NAMED` and
+  `QML_EXTENDED_TYPE` are names no Qt version declares; do not write them.
+- No `std::optional`, `std::variant`, `std::pair` or `std::function` in a `Q_PROPERTY` or in a
+  signature crossing a queued connection (metatype-runtime): Qt 5 `moc` accepts the declaration
+  and the build links, but no metatype is registered, so `QMetaProperty::read()` warns
+  `Unable to handle unregistered datatype` and yields an invalid QVariant.
 - Documentation is read at Qt 5 only: MCP `version="5.15.18"` (there is no `5.15.2` entry on the
   service — asking for it returns an error, not Qt 5 pages), never a 6.x version, never
   `intent="migration"`.
 - If neither the docs MCP nor a local Qt installation is reachable, label the claim
-  "unverified Qt 5 assumption" instead of asserting it.
+  "unverified Qt 5 assumption" instead of asserting it. An existence claim needs a path —
+  `include/<Module>/<header>.h`, or `<qt>/lib/cmake/<Package>/` — not a recollection.
 - No cross-skill references: every path this skill uses lives inside this skill directory.
-
 ## Qt 6 CMake command → Qt 5 replacement
 
 | Must never appear in Qt 5 | Qt 5 form |

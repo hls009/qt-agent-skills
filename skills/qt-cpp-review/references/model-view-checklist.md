@@ -69,8 +69,10 @@ subset as `MDL-*`.
 - **MV-19**: `QSortFilterProxyModel::setDynamicSortFilter(true)` re-filters on every
   `dataChanged`/`rowsInserted`; for a large model set it `false` and call
   `invalidateFilter()`/`invalidate()` explicitly at a coarse point (and say which).
-  Qt 5 has `invalidate()`, `invalidateFilter()` and `invalidateLayout()` — there is no
-  `invalidateRows()` here, that is Qt 6.
+  Qt 5 declares `QSortFilterProxyModel::invalidate()` and `invalidateFilter()`
+  (`qsortfilterproxymodel.h`) and nothing else of the kind: `invalidateLayout()` and
+  `invalidateRows()` are Qt 6, so either one is a compile error here, not a style
+  difference.
 - **MV-20**: `lessThan()` compares the same role the view sorts on
   (`sortRole()`), and is strict weak ordering — returning `true` for equal values breaks
   the sort. Use `QString::localeAwareCompare()` for user-visible text, not `operator<`,

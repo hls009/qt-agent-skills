@@ -16,7 +16,7 @@ license: LicenseRef-Qt-Commercial OR BSD-3-Clause
 compatibility: >-
   Qt 5.x Widgets + CMake projects (validated on Qt 5.15.2). Not for Qt 6,
   qmake, or QML/Qt Quick. No harness requirement — SKILL.md plus references/
-  only need the files inside this directory. Python 3.6+ for the linter.
+  only need the files inside this directory. Python 3.7+ for the linter.
 disable-model-invocation: false
 metadata:
   author: hls
@@ -65,7 +65,9 @@ rules?"
   or a project-generated `*_EXPORT` macro from `generate_export_header`
 - `#include <QtModule/private/*_p.h>` (private headers)
 - `Q_DECLARE_PRIVATE`, `Q_D()`, `Q_Q()`
-- `add_library(... SHARED)` plus `WindowsExportHeaderMacros`/`generate_export_header`
+- `add_library(... SHARED)` plus `generate_export_header` (CMake's GenerateExportHeader
+  module; `WindowsExportHeaderMacros.cmake` was an internal file of older CMake versions
+  and is gone from current ones, so do not use it as a signal)
 - `Q_PLUGIN_METADATA` in the scope
 
 Let the user confirm. When framework mode is enabled:
@@ -92,12 +94,15 @@ asks about the build.
 
 ## Execution order
 
-Three phases. **Never skip a phase.**
+Three phases, in this order. Phase 1 is not optional; if it cannot run, say so in the
+report instead of quietly dropping it.
 
 ### Phase 1: Deterministic linting
 
-Run the single-pass linter against the target files. Requires Python 3.6+, no
-third-party packages. If Python is unavailable, warn and skip to Phase 2.
+Run the single-pass linter against the target files. Requires Python 3.7+, no
+third-party packages. If Python is unavailable, report that Phase 1 produced no
+lint findings and continue with Phase 2 — the phases are not interchangeable, so
+say which evidence is missing rather than pretending the lint ran.
 
 ```bash
 python3 references/lint-scripts/qt_review_lint.py <files...>
@@ -126,27 +131,33 @@ findings. Collect all output before Phase 2.
   containers, `qDeleteAll` depth
 - **API** — `get`-prefix getters, naming
 - **ENM** — enum scoping/underlying type, bool traps, string-as-enum state
-- **TMO / CND / VAL / HDR / TRN** — timeouts, conditional compilation, value
-  classes, public-header rules, ternary idiom
-- **QT6** — Qt 6-only API or Qt 6 CMake syntax in a Qt 5 project. These are
-  compile or configure failures, not style. Categories: `q20::` shims and
-  `<qNN…>` headers, `QAnyStringView`/`QByteArrayView`/`QStringConverter`,
-  `QMetaType::fromType`/`QVariant::typeId`, `QProperty`/`QBindable`,
-  `QML_*` registration macros, `QEventPoint`/`QSinglePointEvent`/`QLocalTime`/
-  `QDayTime`/`QSizeMetrics`/`QNativeInterface`, `QStyleHints::colorScheme`,
+- **TMO / VAL / HDR / TRN / VAR** — timeouts, value classes, public-header rules,
+  ternary idiom, variable initialisation style
+- **FW** — library/plugin rules (`FW-INC-*`, `FW-VAL-*`, `FW-CND-2`, `FW-PRF-1`),
+  emitted only with `--framework`; these are the ids of
+  `references/qt-framework-checklist.md`, so a lint finding and a deep-analysis
+  finding can cite the same rule
+- **QT6** — Qt 6-only API or Qt 6 CMake syntax in a Qt 5 project. These are build or
+  run-time failures, not style: the Severity column of
+  `references/qt515-deltas.md` says which (`compile`, `configure`,
+  `metatype-runtime`). Categories covered: `q20::` shims and `<qNN…>` headers,
+  `QAnyStringView`/`QByteArrayView`/`QStringConverter`,
+  `QVariant::typeId`/`QMetaType::Id`, `QProperty`/`QBindable`,
+  QML type-registration macros (`QML_ELEMENT`, `QML_NAMED_ELEMENT`, `QML_EXTENDED`…
+  — declared by Qt 5.15 in `<QtQml/qqml.h>`, banned as out-of-scope, not as missing),
+  `QEventPoint`/`QSinglePointEvent`/`QLocalTime`/`QDayTime`/`QSizeMetrics`/
+  `QNativeInterface`, `QStyleHints::colorScheme`,
   `QAbstractItemView::setCurrentSection`, `QMouseEvent::position()`,
   `QString::compareIgnoringCase`, `QUuid::toBytes`,
   `Qt::AA_EnableHighDpiWindowScaler`, `std::optional` in `Q_PROPERTY`, and the
-  Qt 6 CMake commands/targets (reported for `CMakeLists.txt` and `*.cmake`
-  inputs).
+  Qt 6 CMake commands/targets (reported for `CMakeLists.txt` and `*.cmake` inputs).
 
-Every QT6 entry was checked against a Qt 5.15.2 installation. Do **not** widen
-the category with recalled Qt 6 differences: several APIs introduced late in
-the Qt 5 series are legal here — `QStringView`, `qsizetype`,
-`Qt::SkipEmptyParts`, `QTimer::callOnTimeout`, `QWheelEvent::position()`,
-`QColor::name(QColor::NameFormat)`, `QIcon::name()`, functor-based
-`QMetaObject::invokeMethod`. The full list, with the Qt 5 spelling to use
-instead, is `references/qt515-deltas.md`.
+Do **not** widen the category with recalled Qt 6 differences: several APIs introduced
+late in the Qt 5 series are legal here, and `references/qt515-deltas.md` holds the only
+list of them in this skill — including `QMetaType::fromType<T>()`,
+`QListWidget::setCurrentRow()` and `QMetaProperty::readOnGadget()`, which a model trained
+on Qt 6 tends to flag wrongly. Every entry in both tables was verified against a Qt 5.15
+installation, header by header.
 
 ### Phase 2: Agent-driven deep analysis (6 parallel agents)
 
@@ -290,4 +301,4 @@ the finding to an investigation target and say what could not be verified.
   mode only)
 - `references/qt-deprecated-classes.md` — what not to use in Qt 5 and why
 - `references/lint-scripts/qt_review_lint.py` — single-pass linter
-  (Python 3.6+, no dependencies)
+  (Python 3.7+, no dependencies)

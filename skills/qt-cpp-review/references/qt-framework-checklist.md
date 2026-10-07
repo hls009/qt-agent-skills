@@ -1,12 +1,17 @@
 # Qt Framework Development Checklist
 
-Rules specific to developing Qt library modules and framework code.
-These rules apply when contributing to qtbase, qtdeclarative, or
-other Qt modules — NOT to application code using Qt.
+Rules specific to developing Qt 5 library modules and plugin code inside a
+Widgets application — NOT to application code that merely uses Qt.
+
+This list was derived from Qt's own framework-development guidance, which is written
+against Qt 6. Anything in it that Qt 5.15 does not declare has been replaced by the Qt 5
+spelling, and the two are never mixed on one line: `Q_CONSTINIT`, `Q_IMPLICIT`,
+`Q_DECLARE_METATYPE_EXTERN` and `QT_MOVE_ASSIGNMENT_OPERATOR_IMPL_VIA_*` are Qt 6
+macros and appear nowhere in `<qt>/include` of a 5.15 kit.
 
 Activated when:
-- User passes `framework` argument: `/qt-cpp-review framework`
-- Auto-detected via framework signals in the codebase
+- the `framework` argument is passed to this skill
+- auto-detected via framework signals in the codebase
 
 Each rule has a short ID prefixed with `FW-` for cross-referencing.
 
@@ -18,8 +23,9 @@ Each rule has a short ID prefixed with `FW-` for cross-referencing.
   out-of-line overloading instead (binary compatibility).
 - **FW-API-4**: Don't define symbols in a Qt library that don't
   reference at least one type from that library (ODR violation
-  risk). Includes Q_DECLARE_METATYPE_EXTERN, qHash, relational
-  operators, math functions.
+  risk). In Qt 5 that means `qHash`, relational operators, free
+  functions and `Q_DECLARE_METATYPE` — `Q_DECLARE_METATYPE_EXTERN`
+  is a Qt 6 addition and does not exist here.
 - **FW-API-6**: "Iteratable" does not exist → "Iterable".
 - **FW-API-7**: "Status" is acceptable (Oxford dict. Meaning 5);
   "State" also correct for system condition.
@@ -52,11 +58,10 @@ Each rule has a short ID prefixed with `FW-` for cross-referencing.
 
 - **FW-VAR-1**: Static constexpr in exported classes: define in
   both .h and .cpp (MinGW DLL-import issue).
-- **FW-VAR-2**: Static/thread_local variables: use `constexpr`
-  if possible; otherwise `Q_CONSTINIT const` if possible;
-  otherwise `Q_CONSTINIT` if possible; otherwise add a comment
-  that the variable is known to cause runtime initialization.
-  Don't reorder keywords (Q_CONSTINIT first — may be attribute).
+- **FW-VAR-2**: Static/thread_local variables: `constexpr` where the type allows
+  it; otherwise `const` at namespace scope with a comment saying it is known to
+  cause runtime initialisation. Qt 5 has no `Q_CONSTINIT` to ask for — that macro
+  arrived with Qt 6 — so the comment is the mechanism, not an afterthought.
   Rationale: avoids Static Initialization Order Fiasco and
   improves startup performance for libraries linking the module.
 
@@ -125,11 +130,13 @@ Each rule has a short ID prefixed with `FW-` for cross-referencing.
 - **FW-SMF-2**: SMF/swap argument name: always `other`.
 - **FW-SMF-3**: Copy SMFs of implicitly-shared classes: usually
   NOT noexcept (allocation on detach).
-- **FW-SMF-4**: Every ctor: `Q_IMPLICIT` or `explicit`.
+- **FW-SMF-4**: Every single-argument ctor that is not meant to convert: declare it
+  `explicit`. Qt 5 has no `Q_IMPLICIT` to mark the convertible ones (Qt 6 macro);
+  leaving off `explicit` is the Qt 5 way to say "converting constructor".
 - **FW-SMF-5**: Default ctors: implicit (not explicit).
-- **FW-SMF-7**: Move-assignment: use QT_MOVE_ASSIGNMENT_OPERATOR_
-  IMPL_VIA_{MOVE_AND_SWAP|PURE_SWAP}. PURE_SWAP only for
-  memory-only resources.
+- **FW-SMF-7**: Move-assignment: for an implicitly-shared class, copy-and-swap is the
+  Qt 5 pattern; `QT_MOVE_ASSIGNMENT_OPERATOR_IMPL_VIA_*` is Qt 6 bookkeeping that moc
+  in 5.15 does not read. Say which one the class implements and why.
 
 ## Enums (Framework)
 
