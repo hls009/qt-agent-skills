@@ -3,8 +3,7 @@
 # Each line is checked against the same Qt 5 installation, class-scoped where the
 # claim is qualified. A line the kit DOES declare is a finding: the ban (or the
 # "this is a compile error" claim) is a false positive against code that compiles,
-# which is the failure this fork exists to prevent — see
-# AUDIT-qt515-conformance-2026-10-06.md P0-14.
+# which is the failure this fork exists to prevent.
 
 # String and container text API (Qt 6)
 QAnyStringView
@@ -39,14 +38,12 @@ QString::compareIgnoringCase
 QUuid::toBytes
 QStyleHints::colorScheme
 QPalette::Accent
-QElapsedTimer::hasElapsed
 QAbstractItemView::setCurrentSection
 QAbstractItemView::setCurrentRow
 QMetaType::Id
 QVariant::typeId
 QIcon::setName
 invalidateLayout
-QPainter::useNativeRendering
 
 # Qt 6 framework-development macros cited by the framework checklist (P0-13)
 Q_CONSTINIT

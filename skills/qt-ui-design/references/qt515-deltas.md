@@ -54,7 +54,7 @@ code a compile error.
 | Do not write (QML / Qt 6) | Write instead (Qt 5 Widgets) |
 |---|---|
 | `anchors.centerIn`, `anchors.margins` | layout with stretches, `QGridLayout`, contents margins via `QLayout::setContentsMargins()` |
-| `Layout.fillWidth: true`, `Layout.alignment` | `QSizePolicy::Expanding`, `QLayout::setStretchFactor()`, alignment argument of `addWidget()` |
+| `Layout.fillWidth: true`, `Layout.alignment` | `QSizePolicy::Expanding`, `QBoxLayout::setStretchFactor()`, `QGridLayout::setRowStretch()`/`setColumnStretch()`, alignment argument of `addWidget()` |
 | `Rectangle { color: … }`, `Item` | `QWidget` subclass with `paintEvent`, or a styled container with QSS |
 | `Button { text: … }`, `Control`, `background`, `contentItem` | `QPushButton`, `QToolButton`, and the button's icon/text API |
 | `property alias`, `Component`, `Loader`, `Instantiator` | getters/setters on the widget class, factory functions, `QStackedWidget`, create-on-demand in C++ |
@@ -74,13 +74,9 @@ code a compile error.
 |---|---|
 | automatic per-screen high-DPI scaling | `AA_EnableHighDpiScaling` + `AA_UseHighDpiPixmaps` before `QApplication`, plus `setHighDpiScaleFactorRoundingPolicy()` (see `SKILL.md` §3) |
 | `QStyleHints::colorScheme()` / `Qt::ColorScheme` | no API: own the theme choice via `QSettings` + `QPalette` + QSS |
-| `QWidget::sizeFromContents`-based automatic content scaling | explicit `QSizePolicy`, `sizeHint()` overrides, font-metric-derived constants |
-| `QPainter::useNativeRendering` and RHI-backed paths | software/raster `QPainter` on the widget's paint device |
 | `Qt6::Core5Compat` `QRegExp` | Qt 5 has `QRegExp` natively, but it is legacy — use `QRegularExpression` |
-| `QElapsedTimer::hasElapsed(n)` | `elapsed() >= n` |
 | `QList` unified with `QVector` (Qt 6) | Qt 5 `QVector` for contiguous data, `QList` for pointer-ish payloads; both exist here |
-| scoped enum flags (`Qt::AlignmentFlag` only) | Qt 5 accepts unscoped `Qt::AlignLeft \| Qt::AlignTop` in `int`-typed parameters, so a mixed cast is not needed; keep `QFlag` types explicit |
-| `setHighDpiScaleFactorRoundingPolicy` on `QGuiApplication` in Qt 6 | same call exists in Qt 5 (`qguiapplication.h`, since 5.6) |
+| `setHighDpiScaleFactorRoundingPolicy` on `QGuiApplication` in Qt 6 | same call exists in Qt 5 (`qguiapplication.h`, since 5.14) |
 | `Qt::AA_EnableHighDpiWindowScaler` | absent: not a Qt 5 attribute at all |
 
 ## Evidence, and what was measured rather than remembered
@@ -104,7 +100,7 @@ effects cannot be settled by a symbol lookup:
 Qt 6 modules and tools that would compile but contradict the Widgets-only brief:
 `Qt5::Quick`/`Qml` targets (present in a full Qt 5 install — do not link them), `qmlscene`,
 `qmlprofiler`, `qmltestrunner`, `qmllint`, the QML/Quick test framework, Qt Quick Ultralite,
-Qt Design Studio, and Figma-to-QML tooling. If a design ask can only be answered by them
+Qt Design Studio, and design-tool-to-QML import tooling. If a design ask can only be answered by them
 ("we need smooth animated transitions between pages on an embedded GPU target"), say so
 plainly and describe the Widgets answer (`QStackedWidget` plus `QPropertyAnimation` on
 `windowOpacity`, or `QGraphicsOpacityEffect`) rather than producing a hybrid.

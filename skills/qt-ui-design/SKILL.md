@@ -293,7 +293,7 @@ Desktop checklist:
 - `references/qt515-deltas.md` — Qt 6 / QML ways of describing UI that must not appear in
   Qt 5 Widgets output
 
-External background: NN/g's 10 usability heuristics, the Laws of UX collection, WCAG 2.2,
-and a modular-scale calculator. For Qt facts, use the documentation tool with
-`version="5.15.18"` and module `qtwidgets`, or the headers of the Qt 5 installation —
-never a Qt 6 page.
+External background: the classic usability heuristics, general UX principle
+collections, WCAG 2.2, and a modular-scale calculator. For Qt facts, use the
+documentation tool with `version="5.15.18"` and module `qtwidgets`, or the headers
+of the Qt 5 installation — never a Qt 6 page.
