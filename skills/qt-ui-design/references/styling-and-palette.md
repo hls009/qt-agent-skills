@@ -32,7 +32,9 @@ QApplication::setPalette(pal);
   must be painted while a parent style already paints it — the usual cause of "my palette
   change did nothing".
 - A widget that must not inherit a parent palette change: `setPalette()` on the widget
-  itself, or `QPalette::resolveMask()` behaviour will merge it with the parent's.
+  itself. Palette propagation in Qt 5 is `QPalette::resolve()` — the merged result is what
+  the widget paints with, so a partial palette on a child overrides only the roles it sets.
+  (`QPalette::resolveMask()` is the Qt 6 accessor for the mask; Qt 5 has no such member.)
 
 ## 2. QSS
 
@@ -70,10 +72,16 @@ QApplication::setPalette(pal);
 - **What QSS cannot do**: no media queries, no `:has()`-style relational selectors, no
   transitions or animations (animate from C++ with `QPropertyAnimation`), no `@font-face`
   (register fonts with `QFontDatabase`), no `calc()`.
-- **Font shorthand is not supported**: set `font-size`, `font-weight`, `font-family`
-  separately.
+- **Font shorthand works**: `font: bold 14pt "Arial"` is parsed by Qt 5's QSS (the 5.15
+  style sheet reference gives `font: bold italic large "Times New Roman"` as an example),
+  and `font-family`, `font-size` and `font-weight` may be set separately as well. What Qt 5
+  does **not** do is propagate it: a widget does not inherit a QSS font or colour from its
+  parent unless `QCoreApplication::setAttribute(Qt::AA_UseStyleSheetPropagationInWidgetStyles)`
+  is set before the application object is created. That is the difference people remember as
+  "the font shorthand does not work".
 - **Scroll bars and combos need sub-controls.** Styling `QScrollBar` alone looks broken;
-  `::add-sub-page`, `::sub-line` and `:horizontal`/`:vertical` usually need rules too.
+  `::add-page`, `::sub-page`, `::add-line`, `::sub-line` and `:horizontal`/`:vertical`
+  usually need rules too. (The names are those four: there is no `::add-sub-page`.)
 
 ### Where the stylesheet lives
 
@@ -136,9 +144,14 @@ for the active style.
   render as nothing and the app does not fail.
 - Monochrome themable icons: load the SVG/`QPixmap` once and tint it into the palette's
   `WindowText`/`ButtonText` colour, instead of shipping a variant per theme.
-- `QAction::setIcon()`, `QToolButton`, `QPushButton` all inherit `QApplication::iconSize()`;
-  set the size once via `QApplication::setStyleSheet` or `QWidget::setIconSize()` on the
-  toolbar, and let style metrics pick it otherwise.
+- There is no application-wide icon size in Qt 5. `QApplication::iconSize()` does not
+  exist, and neither does `QWidget::setIconSize()`. Set it where the class declares it:
+  `QMainWindow::setIconSize()` covers the toolbars and dock buttons the main window owns,
+  and `QAbstractButton::setIconSize()` (so `QToolButton` and `QPushButton`),
+  `QAbstractItemView::setIconSize()`, `QComboBox::setIconSize()` and
+  `QTabBar::setIconSize()` cover the rest. Ask the style for the platform default instead
+  of inventing a number: `QStyle::pixelMetric(QStyle::PM_ButtonIconSize)`,
+  `QStyle::PM_SmallIconSize`, `QStyle::PM_LargeIconSize`.
 
 ## 5. Dark theme
 

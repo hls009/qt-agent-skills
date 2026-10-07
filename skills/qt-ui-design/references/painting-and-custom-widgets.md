@@ -30,8 +30,10 @@ Rules that are routinely got wrong:
 - `setRenderHint(QPainter::Antialiasing)` is **off** by default. Text on a diagonal, arcs,
   circles and any stroked path look broken without it; leaving it on for axis-aligned
   rectangles and image blits costs performance for nothing.
-- `QPainter::Text Antialiasing` needs the font hinting decision made once: mixing
-  `QFont::NoHinting` with antialiased text produces the "why is this text fuzzy" report.
+- `QPainter::TextAntialiasing` needs the font hinting decision made once: mixing it with
+  `QFont::PreferNoHinting` (via `QFont::setHintingPreference()`) produces the "why is this
+  text fuzzy" report. Qt 5's hinting values are `PreferDefaultHinting`, `PreferNoHinting`,
+  `PreferVerticalHinting`, `PreferFullHinting` — there is no `QFont::NoHinting`.
 - Paint only what the dirty region needs: `event->rect()` is the damaged area. Painting the
   whole widget on every event is the main cause of UI-thread stalls in a 30-fps display.
 - Coordinate space is the widget's, in **device-independent** pixels; `devicePixelRatio()`
@@ -104,8 +106,11 @@ QSize Gauge::minimumSizeHint() const { return QSize(48, 48); }
   is a 100×30 strip" is a missing `sizeHint()`, not a layout bug.
 - Derive from font metrics, not literals: a fixed 12 px label is unreadable at 200% scaling
   and does not follow the user's system font size.
-- `QWidget::heightForWidth()` requires `QSizePolicy::HeightForWidth` in the vertical policy —
-  setting the function without the policy does nothing.
+- `QWidget::heightForWidth()` is only consulted when the policy carries the flag:
+  `QSizePolicy policy(...); policy.setHeightForWidth(true);` — `hasHeightForWidth()` is how
+  the layout asks. Overriding the function without setting the policy does nothing, and
+  `QSizePolicy::HeightForWidth` is not an enumerator in Qt 5 (the `Policy` values are
+  `Fixed`, `Minimum`, `Maximum`, `Preferred`, `MinimumExpanding`, `Expanding`, `Ignored`).
 - For a ratio-locked widget (`QImage` viewer, oscilloscope), keep the aspect in `resizeEvent`
   or use `QLabel::setScaledContents(false)` plus manual `QPixmap::scaledToWidth()` —
   `KeepAspectRatio` in a `QScrollArea` is a different trade-off, so choose deliberately.
@@ -138,9 +143,12 @@ void StatusDelegate::paint(QPainter *p, const QStyleOptionViewItem &opt,
   reads the model, `setModelData()` writes it and must call `model->setData()`; emit
   `commitData(editor)` for custom commit triggers (an `Enter` on a `QLineEdit` inside a
   custom editor).
-- `sizeHint()` on the delegate, not the view, decides row height; `updateEditorGeometry()`
-  must honour the view's `editorStyle()` (`QAbstractItemView::StyledEditor`,
-  `NoEditor`, `FullEditor`).
+- `sizeHint()` on the delegate, not the view, decides row height. `updateEditorGeometry()`
+  gets a `QStyleOptionViewItem` and must place the editor from `option.rect` in the view's
+  viewport coordinates — there is no `editorStyle()` on `QAbstractItemView`, and no
+  `StyledEditor`/`NoEditor`/`FullEditor` enum: fill the option with
+  `QStyledItemDelegate::initStyleOption()` and read `option.features`,
+  `option.rect`, `option.subControls`.
 - An always-live editor per row is `QAbstractItemView::openPersistentEditor(index)` (close
   with `closePersistentEditor(index)`) — it costs a real widget per row, so a large model
   must not do it wholesale; `setIndexWidget()` is the alternative for static controls.

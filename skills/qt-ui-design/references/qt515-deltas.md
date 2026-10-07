@@ -83,6 +83,22 @@ code a compile error.
 | `setHighDpiScaleFactorRoundingPolicy` on `QGuiApplication` in Qt 6 | same call exists in Qt 5 (`qguiapplication.h`, since 5.6) |
 | `Qt::AA_EnableHighDpiWindowScaler` | absent: not a Qt 5 attribute at all |
 
+## Evidence, and what was measured rather than remembered
+
+This skill has no linter behind it, so its claims are checked in two other ways. Every Qt 5
+symbol named above was looked up in the public headers of a Qt 5.15 installation, and the
+existence registers shipped with the repository's conformance check carry the results — a
+row that is wrong there fails the check. The following four statements were additionally
+**executed** against Qt 5.15 (build + offscreen run), because prose about styles and paint
+effects cannot be settled by a symbol lookup:
+
+| Claim | Observation |
+|-------|-------------|
+| Qt 5 QSS supports the `font:` shorthand | `QPushButton { font: bold 14pt "Arial"; }` resolved to bold, 14 pt, Arial with no stylesheet warning. The 5.15 reference documents `font: bold italic large "Times New Roman"` |
+| QSS font/palette does not propagate by default | the attribute that changes it is `Qt::AA_UseStyleSheetPropagationInWidgetStyles`, present in `qnamespace.h`; without it only the styled widget itself is affected |
+| `QPainter::TextAntialiasing` and `QFont::PreferNoHinting` are the real spellings | declared as such in `qpainter.h` and `qfont.h`; `QPainter::Text Antialiasing` and `QFont::NoHinting` are not names Qt 5 uses |
+| height-for-width is a policy flag, not an enumerator | `QSizePolicy::setHeightForWidth()` / `hasHeightForWidth()` in `qsizepolicy.h`; the `Policy` enum has no `HeightForWidth` value |
+
 ## Also out of scope
 
 Qt 6 modules and tools that would compile but contradict the Widgets-only brief:
