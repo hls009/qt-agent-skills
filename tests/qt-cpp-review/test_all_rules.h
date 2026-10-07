@@ -63,7 +63,9 @@ Q_DECLARE_METATYPE(NoteRoles)
 void takesAnyView(QAnyStringView view);
 QByteArrayView viewOfBytes();
 
-// QT6-3: Qt 6 meta-type API
+// QT6-3: Qt 6 meta-type API. Only typeId() may fire here: QMetaType::fromType<T>()
+// is declared by Qt 5.15 (qmetatype.h) and test_legal_qt5.cpp locks it as a
+// counter-example that must stay silent.
 int metaTypeId = QMetaType::fromType<QString>().id();
 int variantTypeId = variantValue.typeId();
 

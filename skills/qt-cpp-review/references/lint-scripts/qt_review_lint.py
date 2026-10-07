@@ -29,7 +29,9 @@ Rule categories:
   VAL  — Value class conventions
   HDR  — Public header rules
   TRN  — Ternary operator
+  VAR  — Variable initialisation style
   QT6  — Qt 6-only API or CMake surfaced in a Qt 5 project
+  FW   — framework/library rules, only with --framework
 
 Usage:
     python qt_review_lint.py <file1.cpp> [file2.h ...]
@@ -150,21 +152,34 @@ RE_DEP17_SPLIT = re.compile(r'QString::(SkipEmptyParts|KeepEmptyParts)\b')
 RE_DEP18_FONTSWIDTH = re.compile(
     r'\b(?:fontMetrics|fm|metrics)\s*(?:\(\))?\s*(?:\.|->)\s*width\s*\(')
 
-# QT6 — Qt 6-only API appearing in Qt 5 code. Every symbol here was checked
-# against Qt 5.15.2 public headers (<qt>/include/QtCore, QtGui, QtWidgets) and
-# is ABSENT there, so a match is a compile error, not a style preference.
-# Counter-examples that DO exist in Qt 5.15.2 and must never be flagged:
+# QT6 — Qt 6-only API appearing in Qt 5 code. Every symbol is checked against the
+# public headers of a Qt 5.15 installation and is ABSENT there, so a match is a
+# compile error — QT6-9 excepted, which fails at runtime through the meta object —
+# and never a style preference. These claims are not kept in prose: the repository
+# ships existence registers (Qt 5 API, Qt 6-only API, out-of-scope Qt 5 API, CMake
+# facts) and its conformance check verifies them, class by class, against a real kit.
+#
+# Counter-examples that DO exist in Qt 5.15 and must never be flagged:
 # QStringView, qsizetype, Qt::SkipEmptyParts, QTimer::callOnTimeout,
-# QWheelEvent::position()/globalPosition(), QColor::name(NameFormat),
-# QIcon::name(), QMetaObject::invokeMethod with a functor.
+# QWheelEvent::position()/globalPosition(), QColor::name(NameFormat), QIcon::name(),
+# QMetaType::fromType<T>(), QListWidget::setCurrentRow(),
+# QMetaProperty::readOnGadget()/writeOnGadget(), invokeMethod with a functor.
+#
+# Scope, not existence: the QML type-registration macros of QT6-10 are declared by
+# Qt 5.15 itself, in <QtQml/qqml.h>. They are banned because this is a Widgets-only
+# skill set, not because Qt 5 lacks them.
 RE_QT6_Q20 = re.compile(r'\bq20::|#{1}\s*include\s*[<"]q\d{2}')
 RE_QT6_TEXTAPI = re.compile(
     r'\b(QAnyStringView|QByteArrayView|QStringConverter|QStringDecoder|'
     r'QStringEncoder|QUtf16StringView|QUtf8StringView|QLatin1StringView)\b')
 RE_QT6_METATYPE = re.compile(
-    r'\bQMetaType::fromType\b|\.typeId\s*\(\s*\)|\bQMetaType::Id\b')
+    r'\.typeId\s*\(\s*\)|\bQMetaType::Id\b')   # fromType<T>() is Qt 5.15 API: qmetatype.h
 RE_QT6_MOUSEPOS = re.compile(
     r'\b(?:mouseEvent|mouse|ev|event)\s*->\s*(?:position|globalPosition|scenePosition)\s*\(\s*\)')
+# position()/globalPosition() are Qt 6 on QMouseEvent and Qt 5.15 on QWheelEvent. A
+# variable name cannot tell the two apart, so QT6-4 became a context rule that stays
+# quiet when the lines above name a wheel event.
+RE_QT6_WHEEL_CTX = re.compile(r'\bQWheelEvent\b|\bwheelEvent\b')
 RE_QT6_VIEWSECTION = re.compile(
     r'\b\w*(?:[Vv]iew|[Tt]able|[Tt]ree|[Ll]ist)\w*\s*(?:->|\.)\s*setCurrentSection\s*\(')
 RE_QT6_UUID_BYTES = re.compile(r'\b(?:uuid|id)\s*(?:\.|->)\s*toBytes\s*\(\s*\)')
@@ -173,7 +188,8 @@ RE_QT6_COLOR_SCHEME = re.compile(r'\bstyleHints\s*\(\s*\)\s*->\s*colorScheme\b')
 RE_QT6_PROPERTY = re.compile(
     r'\bQ_PROPERTY\s*\(\s*std::(optional|variant|pair|function)\b')
 RE_QT6_QMLMACRO = re.compile(
-    r'\bQML_(ELEMENT|EXTENDED_TYPE|NAMED|UNCREATABLE|SINGLETON|FOREIGN|INTERFACE|TYPE)\b')
+    r'\bQML_(ELEMENT|NAMED_ELEMENT|EXTENDED|ANONYMOUS|UNCREATABLE|SINGLETON'
+    r'|FOREIGN|INTERFACE|DECLARE_TYPEINFO)\b')
 RE_QT6_PROPERTY_API = re.compile(r'\b(QBindable|QProperty<|QPropertyWatcher|QUntypedProperty)\b')
 RE_QT6_NEW_TYPES = re.compile(
     r'\b(QLocalTime|QDayTime|QSizeMetrics|QNativeInterface|QEventPoint|QSinglePointEvent)\b')
@@ -190,12 +206,9 @@ RE_QT6_QUICK_DEPS = re.compile(
 RE_CMAKE_FILE = re.compile(r"(CMakeLists\.txt|\.cmake)$", re.I)
 
 # PAT / HDR / API / ENM / TMO / CND / VAL / TRN
-RE_HDR3_MINMAX = re.compile(r'std::(min|max)\s*\(')
-RE_HDR3_MINMAX_SAFE = re.compile(r'\(std::(min|max)\)\s*\(')
-RE_HDR3_LIMITS = re.compile(r'std::numeric_limits<[^>]+>::(min|max)\s*\(')
-RE_HDR3_LIMITS_SAFE = re.compile(
-    r'\(std::numeric_limits<[^>]+>::(min|max)\)\s*\('
-)
+RE_HDR3 = re.compile(r'std::(min|max)\s*\(|std::numeric_limits<[^>]+>::(min|max)\s*\(')
+RE_HDR3_SAFE = re.compile(
+    r'\(std::(min|max)\)\s*\(|\(std::numeric_limits<[^>]+>::(min|max)\)\s*\(')
 RE_PAT1_OPT_VALUE = re.compile(r'\.value\s*\(\)')
 RE_PAT1_OPT_CTX = re.compile(r'(optional|opt)')
 RE_PAT2_OPT_DEFAULT = re.compile(
@@ -232,12 +245,9 @@ RE_API5_LEGIT = re.compile(
 RE_ENM2_UNSCOPED = re.compile(r'^\s*enum\s+[A-Z]\w*\s*\{')
 RE_ENM2_CLASS = re.compile(r'enum\s+class')
 RE_ENM2_TYPED = re.compile(r'enum\s+[A-Z]\w*\s*:')
-RE_ENM9_BOOL_PARAMS = re.compile(
+RE_ENM9 = re.compile(
     r'\([^()]*\bbool\s+\w+[^()]*,[^()]*\bbool\s+\w+'
-)
-RE_ENM9_BOOL_ARGS = re.compile(
-    r'[(,]\s*(?:true|false)\s*,\s*(?:true|false)\s*[),]'
-)
+    r'|[(,]\s*(?:true|false)\s*,\s*(?:true|false)\s*[),]')
 RE_PAT9_QLIST_QSTR = re.compile(r'QList\s*<\s*QString\s*>')
 RE_PAT10_RET_MOVE = re.compile(r'return\s+std::move\s*\(')
 RE_PAT11_QREGEX = re.compile(r'QRegularExpression\s+[a-zA-Z_]')
@@ -378,12 +388,10 @@ RULES_SIMPLE: list[Rule] = [
          "QTextCodec \u2014 available but not the default path; prefer QString::fromUtf8()/fromLatin1() "
          "or an explicit codec only for legacy encodings"),
     # --- HDR ---
-    Rule("HDR-3", RE_HDR3_MINMAX,
-         "Unprotected std::min/max \u2014 use (std::min)(a,b) for Windows macro safety",
-         exclude=RE_HDR3_MINMAX_SAFE),
-    Rule("HDR-3", RE_HDR3_LIMITS,
-         "Unprotected numeric_limits::min/max \u2014 use (std::numeric_limits<T>::min)()",
-         exclude=RE_HDR3_LIMITS_SAFE),
+    Rule("HDR-3", RE_HDR3,
+         "Unprotected std::min/max or std::numeric_limits<T>::min/max \u2014 parenthesise for "
+         "Windows macro safety: (std::min)(a,b), (std::numeric_limits<T>::min)()",
+         exclude=RE_HDR3_SAFE),
     # --- PAT ---
     Rule("PAT-3", RE_PAT3_HOLDS_ALT,
          "std::holds_alternative \u2014 prefer std::get_if or std::visit"),
@@ -413,10 +421,9 @@ RULES_SIMPLE: list[Rule] = [
          "get-prefix on getter \u2014 Qt reserves get for user interaction/decomposition",
          exclude=RE_API5_LEGIT),
     # --- ENM ---
-    Rule("ENM-9", RE_ENM9_BOOL_PARAMS,
-         "Two or more bool parameters \u2014 boolean trap; use named enums (f(x, LogRule::DontLog))"),
-    Rule("ENM-9", RE_ENM9_BOOL_ARGS,
-         "Non-intuitive bool literal arguments \u2014 confusing at call site; use named enums"),
+    Rule("ENM-9", RE_ENM9,
+         "Boolean trap \u2014 two bool parameters, or adjacent true/false literals at the call "
+         "site; use a named enum (f(x, LogRule::DontLog))"),
     # --- MDL (line-level) ---
     Rule("MDL-2", RE_MDL2_EMPTY_ROLES,
          "dataChanged with empty roles {} \u2014 forces full refresh; pass specific roles"),
@@ -450,12 +457,13 @@ RULES_QT6: list[Rule] = [
     Rule("QT6-2", RE_QT6_TEXTAPI,
          "Qt 6 string/text API \u2014 absent in Qt 5 (QStringView exists in 5.15, QAnyStringView/QStringConverter do not)"),
     Rule("QT6-3", RE_QT6_METATYPE,
-         "Qt 6 meta-type API \u2014 use QMetaType::type(\"TypeName\") and QVariant::userType() in Qt 5"),
-    Rule("QT6-4", RE_QT6_MOUSEPOS,
-         "QMouseEvent::position()/globalPosition() are Qt 6 \u2014 use pos()/globalPos()/localPos()/windowPos() (QWheelEvent::position() is fine in 5.15)"),
+         "Qt 6 meta-type API \u2014 use QMetaType::type(\"TypeName\") and QVariant::userType() "
+         "in Qt 5 (QMetaType::fromType<T>() is Qt 5.15 API and is not a finding)"),
     Rule("QT6-5", RE_QT6_VIEWSECTION,
-         "QAbstractItemView::setCurrentSection() is Qt 6 \u2014 use setCurrentIndex()/setCurrentRow()/setCurrentColumn() "
-         "(QDateTimeEdit::setCurrentSection does exist in Qt 5)"),
+         "QAbstractItemView::setCurrentSection() is Qt 6 \u2014 on a view use "
+         "setCurrentIndex(model->index(row, column)) or QTableView::selectRow()/selectColumn(); "
+         "setCurrentRow() is Qt 5 only on QListWidget/QCompleter, and "
+         "QDateTimeEdit::setCurrentSection() is another class entirely and is fine"),
     Rule("QT6-6", RE_QT6_UUID_BYTES,
          "QUuid::toBytes() is Qt 6 \u2014 use toByteArray() (Qt 5)"),
     Rule("QT6-7", RE_QT6_COMPARE_IC,
@@ -463,10 +471,14 @@ RULES_QT6: list[Rule] = [
     Rule("QT6-8", RE_QT6_COLOR_SCHEME,
          "QStyleHints::colorScheme() is Qt 6.5+ \u2014 no light/dark query in Qt 5; palette-based styling only"),
     Rule("QT6-9", RE_QT6_PROPERTY,
-         "std::optional/variant/pair/function in a Q_PROPERTY \u2014 Qt 5 moc cannot register these "
-         "(plain C++ functions taking std::optional are fine; signals, slots and properties are not)"),
+         "std::optional/variant/pair/function in a Q_PROPERTY \u2014 moc accepts it and the build links, "
+         "but Qt 5 registers no metatype for it: QMetaProperty::read warns "
+         "'Unable to handle unregistered datatype' and yields an invalid QVariant (runtime failure, "
+         "not a compile error). Plain C++ functions returning std::optional are fine"),
     Rule("QT6-10", RE_QT6_QMLMACRO,
-         "QML registration macro is Qt 6 \u2014 and QML is out of scope here: expose the class to Widgets code directly"),
+         "QML type-registration macro \u2014 Qt 5.15 does declare these, in <QtQml/qqml.h>; they are out "
+         "of scope for a Widgets-only project, which does not link QtQml: expose the class to C++ "
+         "callers directly"),
     Rule("QT6-11", RE_QT6_PROPERTY_API,
          "Qt 6 property-binding API (QProperty/QBindable) \u2014 absent in Qt 5; use Q_PROPERTY plus notifications"),
     Rule("QT6-12", RE_QT6_NEW_TYPES,
@@ -490,6 +502,11 @@ RULES_QT6_CMAKE: list[Rule] = [
 
 # Tier B: Match + context window check.
 RULES_CONTEXT: list[Rule] = [
+    Rule("QT6-4", RE_QT6_MOUSEPOS,
+         "QMouseEvent::position()/globalPosition() are Qt 6 \u2014 use pos()/globalPos()/localPos() "
+         "/windowPos(); QWheelEvent::position() is Qt 5.15 and is not a finding",
+         context_before=6, context_pattern=RE_QT6_WHEEL_CTX,
+         context_match_required=False, scope_aware=False),
     Rule("PAT-11", RE_PAT11_QREGEX,
          "QRegularExpression constructed inside loop \u2014 compile once before loop",
          context_before=5, context_pattern=RE_LOOP_CONSTRUCT,
@@ -527,18 +544,24 @@ RULES_FLAG: list[Rule] = [
 # Framework-only rules: only active when --framework flag is passed.
 # These enforce Qt module/library conventions (include style, qdoc,
 # internal shims) that don't apply to application code.
+# Framework rules carry the FW- ids of references/qt-framework-checklist.md, so a
+# lint finding and a deep-analysis finding can name the same rule. FW-INC-1 covers
+# both include shapes there (bare <qheader.h>, and the CamelCase form); FW-PRF-1 is
+# the checklist row added for the make_unique<T[]> case; FW-VAL-5 is the
+# Q_DECLARE_METATYPE row this rule implements — the old id VAL-6 meant "move SMFs"
+# in the checklist, and INC-1 meant something else entirely.
 RULES_FRAMEWORK: list[Rule] = [
-    Rule("INC-6", RE_INC6_QGLOBAL,
+    Rule("FW-INC-6", RE_INC6_QGLOBAL,
          "Do not include qglobal.h \u2014 use fine-grained headers instead"),
-    Rule("INC-1", RE_INC1_BARE_QT,
+    Rule("FW-INC-1", RE_INC1_BARE_QT,
          "Qt header included without module prefix \u2014 use <QtModule/qheader.h>",
          header_only=True),
-    Rule("CND-2", RE_CND2_HASINC,
+    Rule("FW-CND-2", RE_CND2_HASINC,
          "__has_include() for non-Qt header \u2014 prefer __cpp_lib_* feature macros"),
-    Rule("VAL-6", RE_VAL6_METATYPE,
+    Rule("FW-VAL-5", RE_VAL6_METATYPE,
          "Q_DECLARE_METATYPE \u2014 still required in Qt 5 for cross-thread/queued QVariant payloads; "
          "verify it exists for every custom type used in a signal, slot or property"),
-    Rule("PAT-6", RE_PAT6_MAKEUNIQUE,
+    Rule("FW-PRF-1", RE_PAT6_MAKEUNIQUE,
          "std::make_unique<T[]> zero-initialises \u2014 when the buffer is filled immediately, "
          "wrap a raw 'new T[n]' in std::unique_ptr<T[]> instead (Qt 5 has no q20 shim)"),
 ]
@@ -765,7 +788,7 @@ def scan_file(filepath: str, framework: bool = False) -> list[Finding]:
         if m:
             std_name = m.group(2)
             if re.search(rf'^\s*#\s*include\s+<{re.escape(std_name)}>', full_text, re.M):
-                emit(lineno, "INC-3",
+                emit(lineno, "FW-INC-3",
                   f"Both q{m.group(1)}{std_name} and <{std_name}> included \u2014 remove one")
 
         # ERR-6: count placeholders vs .arg() calls

@@ -35,13 +35,15 @@ Each rule has a short ID prefixed with `FW-` for cross-referencing.
 
 ## Includes (Framework)
 
-- **FW-INC-1**: Include as `<QtModule/qheader.h>` (public) or
-  `<QtModule/private/qheader_p.h>` (private), not
-  `<QtModule/QHeader>` (CamelCase form).
+- **FW-INC-1**: Include Qt headers module-prefixed and lower-case:
+  `<QtModule/qheader.h>` (public) or `<QtModule/private/qheader_p.h>`
+  (private) — not a bare `<qheader.h>`, and not the CamelCase
+  `<QtModule/QHeader>` form. `FW-INC-1` in a lint report means the bare form.
 - **FW-INC-2**: Group includes: module → dep Qt modules → QtCore →
   C++ → C → platform/3rd-party. Alphabetical within groups.
 - **FW-INC-3**: qNN headers sort by eventual name (in C++ group).
-  Don't include both qNNfoo.h and <foo>.
+  Don't include both qNNfoo.h and <foo>. `FW-INC-3` in a lint report is
+  exactly that pair.
 - **FW-INC-5**: Prefer forward-declaring in headers. Use
   qcontainerfwd.h / qstringfwd.h.
 - **FW-INC-6**: Don't include qglobal.h. Use fine-grained headers.
@@ -160,6 +162,13 @@ Each rule has a short ID prefixed with `FW-` for cross-referencing.
   `q20::` shim: under C++20 use `std::cmp_equal`/`std::cmp_less`/…
   from `<utility>`; under C++17 cast explicitly through a common type
   and say which one.
+
+## Performance (Framework)
+
+- **FW-PRF-1**: `std::make_unique<T[]>(n)` value-initialises, so an array that is
+  filled immediately is written twice. Wrap `new T[n]` in `std::unique_ptr<T[]>`
+  instead; Qt 5 has no `q20::make_unique_for_overwrite` to ask for. A `FW-PRF-1`
+  line in a lint report is this rule.
 
 ## Conditional Compilation (Framework)
 

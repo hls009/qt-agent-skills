@@ -4,9 +4,11 @@
 """
 Regression test for qt_review_lint.py.
 
-Runs the linter against test files in two modes:
+Runs the linter against test files in four modes:
   1. Universal mode (no flags) — verifies all universal rules
   2. Framework mode (--framework) — verifies framework-only rules
+  3. Gate mode — framework rules must stay silent without the flag
+  4. Legal-code mode — a fixture of valid Qt 5.15 must raise nothing
 
 Usage:
     python tests/run_tests.py
@@ -93,7 +95,7 @@ EXPECTED_UNIVERSAL = {
     ("test_all_rules.h", "PAT-2"): 1,
     ("test_all_rules.h", "QT6-1"): 1,
     ("test_all_rules.h", "QT6-2"): 2,
-    ("test_all_rules.h", "QT6-3"): 2,
+    ("test_all_rules.h", "QT6-3"): 1,  # typeId() only; fromType() is legal, see below
     ("test_all_rules.h", "QT6-9"): 1,
     ("test_all_rules.h", "QT6-10"): 1,
     ("test_all_rules.h", "QT6-11"): 1,
@@ -122,18 +124,24 @@ EXPECTED_UNIVERSAL = {
 # Framework-mode expected findings (--framework flag)
 # Only the framework-specific rules from dedicated test files.
 # Rules that fire regardless of --framework, exercised on the framework fixture.
+# ids here are the FW- ids of references/qt-framework-checklist.md.
 EXPECTED_FRAMEWORK_ALWAYS = {
     ("test_framework.h", "QT6-1"): 1,
-    ("test_framework.h", "INC-3"): 1,
+    ("test_framework.h", "FW-INC-3"): 1,
 }
 
 EXPECTED_FRAMEWORK = {
-    ("test_framework.h", "INC-6"): 1,
-    ("test_framework.h", "INC-1"): 1,
-    ("test_framework.h", "VAL-6"): 1,
-    ("test_framework.cpp", "CND-2"): 1,
-    ("test_framework.cpp", "PAT-6"): 1,
+    ("test_framework.h", "FW-INC-6"): 1,
+    ("test_framework.h", "FW-INC-1"): 1,
+    ("test_framework.h", "FW-VAL-5"): 1,
+    ("test_framework.cpp", "FW-CND-2"): 1,
+    ("test_framework.cpp", "FW-PRF-1"): 1,
 }
+
+# A fixture of code this repository calls legal Qt 5.15, which must raise nothing.
+# A rule firing on legal code is worse than a missing rule: Phase 1 of the skill
+# tells the agent the linter is authoritative and to re-derive nothing from it.
+TEST_LEGAL = "test_legal_qt5.cpp"
 
 
 def parse_output(output: str) -> dict[tuple[str, str], int]:
@@ -161,6 +169,18 @@ def run_linter(files: list[str], extra_args: list[str] | None = None) -> str:
     result = subprocess.run(cmd, capture_output=True)
     return ((result.stdout or b"").decode("utf-8", errors="replace") +
             (result.stderr or b"").decode("utf-8", errors="replace"))
+
+
+def check_legal_fixture(actual: dict[tuple[str, str], int]) -> bool:
+    """The legal-code fixture must raise no finding at all."""
+    if not actual:
+        print(f"Results: 0 findings against {TEST_LEGAL}")
+        print("LEGAL Qt 5.15 CODE PASSED")
+        return True
+    print(f"FAIL: findings against code this repository documents as legal Qt 5.15:")
+    for (fname, rule), count in sorted(actual.items()):
+        print(f"  {fname} {rule} x{count}")
+    return False
 
 
 def check_expectations(
@@ -263,6 +283,15 @@ def main() -> int:
         all_ok = False
     else:
         print("PASSED: No framework rules fired without flag")
+    print()
+
+    # --- Test 4: legal Qt 5.15 code must raise nothing ---
+    print("=" * 60)
+    print("Test 4: no false positives on legal Qt 5.15 code")
+    print("=" * 60)
+
+    if not check_legal_fixture(parse_output(run_linter([str(TEST_DIR / TEST_LEGAL)]))):
+        all_ok = False
     print()
 
     # --- Summary ---
