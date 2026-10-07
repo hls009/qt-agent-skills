@@ -99,7 +99,7 @@ QT6_CODE_TOKENS = [
     (r"\bQML_IMPORT_PATH\b", "QML import path property"),
     (r"\bqmldir\b", "QML module descriptor"),
     (r"[\w/\-.]+\.qml\b", "QML source file"),
-    (r"\bQML_(ELEMENT|NAMED_ELEMENT|EXTENDED|NAMED|UNCREATABLE|SINGLETON|FOREIGN|INTERFACE|ANONYMOUS)\b",
+    (r"\bQML_(ELEMENT|NAMED_ELEMENT|EXTENDED|UNCREATABLE|SINGLETON|FOREIGN|INTERFACE|ANONYMOUS)\b",
      "QML type-registration macro (QtQml; out of scope for Widgets-only code)"),
     (r"\bq20::|\bq20_\w+|<q20\w*>", "Qt 6 q20 shim (absent in Qt 5)"),
     (r"\bqmltestrunner\b|\bqmlprofiler\b|\bqmllint\b|\bqmlscene\b",
