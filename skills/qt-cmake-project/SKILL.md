@@ -183,16 +183,26 @@ Read and act on the references the user's intent addresses:
 
 9. **Never invent a Qt module.** Before writing `find_package(Qt5 REQUIRED
    COMPONENTS Foo)` / `Qt5::Foo`, confirm `Foo` exists in the installation the
-   project uses: list its `<qt>/lib/cmake` directory for `Qt5Foo`, or ask. Qt 5 has
-   no `CanvasPainter`, no `QuickShapes` replacement module, no `Qt5::QuickControls2`
-   in Widgets terms, and optional modules (Charts, VirtualKeyboard, X11Extras,
-   Bluetooth, WebEngine) are not installed everywhere. An unverified module name is
-   a configuration error the user has to debug.
+   project uses: list its `<qt>/lib/cmake` directory for `Qt5Foo`, or ask. Three
+   different mistakes hide in that sentence, and the fix differs for each.
+   *Absent*: Qt 5 declares no `Qt5::CanvasPainter` and no `Qt5::WidgetsExtras`, and
+   there is no `Qt::Widgets` target — writing one stops configuration.
+   *Present but out of scope*: `Qt5::Qml`, `Qt5::Quick`, `Qt5::QuickControls2`,
+   `Qt5::QuickWidgets`, `Qt5::QmlModels` and `Qt5::QuickShapes` are real Qt 5.15
+   targets in a full kit. A Widgets-only project must not link them; that is a scope
+   decision, not a missing module, and reporting it as "does not exist" sends the user
+   looking for a package that is already installed.
+   *Not everywhere*: optional modules (Charts, VirtualKeyboard, X11Extras, Bluetooth,
+   WebEngine) are installed per kit, so verify before using.
+   An unverified module name is a configuration error the user has to debug.
 
-   Common Qt 5 Widgets modules: `Core`, `Gui`, `Widgets`, `Network`,
-   `Concurrent`, `Sql`, `Svg`, `Xml`, `PrintSupport`, `DBus`, `Test`, `Charts`,
-   `LinguistTools` — and the rest follow the same `Qt5<Module>` + `Qt5::<Module>`
-   pattern *only if installed*.
+   Common Qt 5 Widgets modules: `Core`, `Gui`, `Widgets`, `Network`, `Concurrent`,
+   `Sql`, `Svg`, `Xml`, `PrintSupport`, `DBus`, `Test`, `Charts`.
+   `LinguistTools` is a **component, not a link target**: `find_package(Qt5 REQUIRED
+   COMPONENTS LinguistTools)` is correct and `target_link_libraries(app PRIVATE
+   Qt5::LinguistTools)` is a configure error, because that package supplies macros and
+   tools and creates no imported library. The rest follow the `Qt5<Module>` +
+   `Qt5::<Module>` pattern *only if installed*.
 
 10. **Targets get explicit visibility.** `PRIVATE` when only the target's own
     compilation uses it, `PUBLIC` when it appears in public headers, `INTERFACE`

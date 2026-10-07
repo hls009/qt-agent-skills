@@ -11,10 +11,14 @@ that the build must run `moc` on it — in a CMake project that means `CMAKE_AUT
 `qt5_wrap_cpp`. A reader who copies the class into a target without `AUTOMOC` gets
 `undefined reference to vtable`, so record the requirement in the Dependencies section.
 
-Do not describe `Q_GADGET` as supporting `Q_PROPERTY`: in Qt 5 a gadget can carry
-`Q_ENUM` and `Q_INVOKABLE`, but properties on gadgets are a Qt 6 capability. If a source
-file declares `Q_GADGET` with a `Q_PROPERTY`, document the enum and invokables and flag the
-property as a porting hazard rather than a feature.
+`Q_GADGET` does support `Q_PROPERTY` in Qt 5.15, so document gadget properties like any
+other: `moc` accepts the declaration, `staticMetaObject` exposes the property, and
+`QMetaProperty::readOnGadget()` / `writeOnGadget()` in `qmetaobject.h` read and write it
+(verified on a Qt 5.15 installation: `propertyCount() == 1` and the write lands).
+Two limits belong in the prose instead of a porting-hazard warning: a gadget cannot declare
+signals, so `NOTIFY` on a gadget property does not link; and a gadget is not a `QObject`, so
+`QObject::property()` / `setProperty()` are not the access path — the gadget-specific
+methods are. Neither limit makes the declaration Qt 6 API, so do not flag it as such.
 
 ## Signals and slots
 

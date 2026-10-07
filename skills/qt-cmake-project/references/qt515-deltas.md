@@ -63,13 +63,13 @@ code a compile error.
 | `qt_standard_project_setup(REQUIRES 6.x)` | `set(CMAKE_AUTOMOC ON)` / `AUTOUIC` / `AUTORCC` / `CMAKE_INCLUDE_CURRENT_DIR` |
 | `qt_add_executable(app …)` | `add_executable(app WIN32 …)` + `target_link_libraries(app PRIVATE Qt5::Widgets)` |
 | `qt_add_library(lib …)` | `add_library(lib STATIC …)` or `SHARED` / `MODULE` |
-| `qt_add_qml_module(t URI … QML_FILES …)` | does not exist — no QML output |
+| `qt_add_qml_module(t URI … QML_FILES …)` | no Qt 5 equivalent: Qt 5 has no such command, and a Widgets-only build emits no QML |
 | `qt_add_plugin(p …)` | `add_library(p MODULE …)` + `Q_PLUGIN_METADATA` |
 | `qt_add_resources(t "name" PREFIX … FILES …)` | `qt5_add_resources(VAR existing.qrc)` or list the `.qrc` under `AUTORCC` |
 | `qt_add_translations(t TS_FILES …)` | `qt5_add_translation(QM_FILES ${TS_FILES})` from `LinguistTools` |
 | `qt_add_shaders(t … PREFIX … FILES …)` | no Qt 5 equivalent for a Widgets app |
 | `qt_finalize_project()` / `qt_finalize_target()` | nothing to call; CMake handles finalization |
-| `qt_import_qml_plugins(t)` | does not exist — no QML plugins |
+| `qt_import_qml_plugins(t)` | exists in Qt 5 (`Qt5QmlImportScanner`) but is QML plumbing — out of scope, so never emit it |
 | `qt_extract_qml_files_conflict`/`QTP0001`/`QTP0005` policies | Qt 5 has no `qt_*` policies |
 | `Qt6::Core`, `find_package(Qt6 6.8 …)` | `Qt5::Core`, `find_package(Qt5 REQUIRED COMPONENTS Core …)` |
 | `if(QT_VERSION_MAJOR EQUAL 6) … qt5_add_resources() else()` | legacy dual-major scaffolding: keep if found, do not add |

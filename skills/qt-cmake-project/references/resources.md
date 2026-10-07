@@ -159,7 +159,9 @@ and `QFont` constructions.
 
 ## Translations
 
-`LinguistTools` is a component, and its macros live in a separate package file. Either
+`LinguistTools` is a component, not a link target — the package ships `lupdate`/
+`lrelease` and the translation macros, and creates no `Qt5::LinguistTools` imported
+library, so there is nothing to link. Its macros live in a separate package file. Either
 spelling works, but the second is the one that matches how the rest of Qt 5 is found:
 
 ```cmake

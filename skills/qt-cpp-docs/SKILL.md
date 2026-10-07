@@ -72,8 +72,13 @@ cannot fix later; see `references/qt515-deltas.md` for the wording rules and
 - **Follow project conventions** inferred from the surrounding code, not from a generic
   ideal.
 - **Qt 5 vocabulary.** `Q_INVOKABLE` means "callable through the meta-object"
-  (`QMetaObject::invokeMethod`), not "usable from QML". `Q_GADGET` in Qt 5 provides
-  `Q_ENUM`/`Q_INVOKABLE` but **not** `Q_PROPERTY` — do not document gadget properties.
+  (`QMetaObject::invokeMethod`), not "usable from QML". `Q_GADGET` in Qt 5.15 carries
+  `Q_ENUM`, `Q_INVOKABLE` **and** `Q_PROPERTY`: `moc` accepts a gadget property and
+  `QMetaProperty::readOnGadget()` / `writeOnGadget()` (declared in `qmetaobject.h`) read
+  and write it. Two limits are real and must be documented as limits, not as absence: a
+  gadget cannot declare signals, so a gadget property has no working `NOTIFY`; and the
+  value is reached through the gadget accessors, never through `QObject::property()`
+  (a gadget is not a `QObject`).
 
 ## Class-centric document structure
 

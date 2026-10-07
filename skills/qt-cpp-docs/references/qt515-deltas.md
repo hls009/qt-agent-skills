@@ -55,9 +55,15 @@ code a compile error.
    construct behaves differently in Qt 6, that is out of scope; documenting the difference
    invites the reader to write Qt 6 code that does not compile here.
 
-2. **Do not document these as Qt 5 features** (each is absent from Qt 5.15.2):
-   `QProperty`/`QBindable` bindings, `std::optional` in `Q_PROPERTY` or gadget properties,
-   `QML_ELEMENT`-style registration, `QStyleHints::colorScheme()` (no dark-mode query in
+2. **Do not document these as Qt 5 features** (each is absent from Qt 5.15.2, or fails at
+   run time as noted): `QProperty`/`QBindable` bindings,
+   `std::optional`/`std::variant`/`std::pair` in a `Q_PROPERTY` (the declaration builds and
+   links; the meta-object cannot carry the value — `QMetaProperty::read()` warns
+   `Unable to handle unregistered datatype`), gadget *signal notification* (a gadget has no
+   signals, so `NOTIFY` does not link — the gadget property itself is legal in 5.15 and
+   should be documented), `QML_ELEMENT`-style registration (declared by Qt 5.15 in
+   `<QtQml/qqml.h>`; out of scope for a Widgets-only project, not missing),
+   `QStyleHints::colorScheme()` (no dark-mode query in
    Qt 5), `QAbstractItemView::setCurrentSection()`, `QStringConverter`, `QAnyStringView`,
    `QByteArrayView`, `qsizetype` as a container index type (Qt 5 containers take and return
    `int`), `Qt::AA_EnableHighDpiWindowScaler`, functor-only `QMetaObject::invokeMethod`

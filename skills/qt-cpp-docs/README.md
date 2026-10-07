@@ -28,11 +28,13 @@ thread safety, forms, interactions, external communication, usage example.
 
 Two failure modes dominate generated documentation for Qt 5 code.
 
-- **QML phrasing.** Models describe `Q_INVOKABLE` as "callable from QML", document gadget
-  properties that Qt 5's `moc` does not support, and suggest QML examples. Every one of
-  those is rewritten to the Widgets equivalent: meta-object callability, `Q_ENUM` +
-  `Q_INVOKABLE` on gadgets, and the stylesheet / `QPropertyAnimation` /
-  `QDataWidgetMapper` consumers that actually read a `Q_PROPERTY` here.
+- **QML phrasing.** Models describe `Q_INVOKABLE` as "callable from QML", describe gadget
+  properties the way Qt 6 documents them, and suggest QML examples. Every one of those is
+  rewritten to the Widgets equivalent: meta-object callability through
+  `QMetaObject::invokeMethod`, `Q_ENUM` + `Q_INVOKABLE` + `Q_PROPERTY` on gadgets (Qt 5.15
+  declares gadget properties; what a gadget lacks is signals, so there is no working
+  `NOTIFY`), and the stylesheet / `QPropertyAnimation` / `QDataWidgetMapper` consumers that
+  actually read a `Q_PROPERTY` here.
 - **Wrong-version API claims.** Prose that attributes Qt 6-only API to Qt 5
   (`QProperty`/`QBindable` bindings, `QStyleHints::colorScheme()`, `std::optional` in a
   `Q_PROPERTY`, `QAbstractItemView::setCurrentSection()`) is the kind of error a reader

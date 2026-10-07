@@ -30,6 +30,8 @@ because Qt 5 offers no export-macro generator.
 
 ```
 SKILL.md                            entry point: guardrails, hard rules, workflow
+README.md                           this file
+LICENSE.txt                         licence for this skill
 references/
   simple-project.md               single target, flat layout, main.cpp shape
   ui-files-and-autouic.md         .ui forms, AUTOUIC, Ui::* class, promoted widgets

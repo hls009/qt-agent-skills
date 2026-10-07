@@ -231,8 +231,15 @@ CMake.
 Plausible names that do not exist for `qt5_add_resources` / `qt5_wrap_ui` /
 `qt5_add_translation`: `PREFIX`, `BASE`, `FILES`, `QRC_PREFIX`, `NAME`, `NO_OPTIONS`,
 `RESOURCE_NAME`, `OUTPUT_DIR`, `SOURCES`, `QML_FILES`.
-Plausible target names that do not exist unless verified: `Qt5::CanvasPainter`,
-`Qt5::QuickControls2` (a Qt 6-flavoured habit), `Qt5::WidgetsExtras`, `Qt::Widgets`.
+Plausible target names that no Qt 5 package creates: `Qt5::CanvasPainter`,
+`Qt5::WidgetsExtras`, `Qt::Widgets`, `Qt5::LinguistTools` (a component that supplies
+macros and tools, and links as nothing — see `references/resources.md`). Do not put a
+real target in that list to make a scope point: `Qt5::QuickControls2`, `Qt5::Qml`,
+`Qt5::Quick`, `Qt5::QuickWidgets`, `Qt5::QmlModels` and `Qt5::QuickShapes` all exist in a
+full Qt 5.15 kit, and the reason not to link them is that this project is Widgets-only,
+not that they are missing. Say which of the two it is — an invented name stops
+configuration at `find_package`/`target_link_libraries`, a scope violation configures and
+links fine, and the user debugs them very differently.
 
 **Why:** The Qt 5 macro signatures are short and are worth reading in the installed file
 rather than recalling: `<qt>/lib/cmake/Qt5Core/Qt5CoreMacros.cmake`,
