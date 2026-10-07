@@ -70,7 +70,7 @@ code a compile error.
 | `qt_add_shaders(t … PREFIX … FILES …)` | no Qt 5 equivalent for a Widgets app |
 | `qt_finalize_project()` / `qt_finalize_target()` | nothing to call; CMake handles finalization |
 | `qt_import_qml_plugins(t)` | exists in Qt 5 (`Qt5QmlImportScanner`) but is QML plumbing — out of scope, so never emit it |
-| `qt_extract_qml_files_conflict`/`QTP0001`/`QTP0005` policies | Qt 5 has no `qt_*` policies |
+| `QTP0001` policy (the `QTP00xx` policy family is Qt 6) | Qt 5 has no `qt_*` policies |
 | `Qt6::Core`, `find_package(Qt6 6.8 …)` | `Qt5::Core`, `find_package(Qt5 REQUIRED COMPONENTS Core …)` |
 | `if(QT_VERSION_MAJOR EQUAL 6) … qt5_add_resources() else()` | legacy dual-major scaffolding: keep if found, do not add |
 
@@ -108,22 +108,26 @@ versionless `qt_add_resources` / `qt_wrap_cpp` / `qt_wrap_ui` aliases resolve to
 implementations. Prefer the explicit `qt5_*` spelling; the aliases exist for projects that
 must configure under both majors, which is not the case here.
 
-## What does *not* differ (do not "fix" these)
+## What does not differ — do not flag these
 
-Some Qt 6 APIs landed in Qt 5.15 early, so banning them would be a new error:
+Some Qt 6-era names landed in Qt 5.15, so banning them would be a new error. Every row
+below was verified in the headers of a Qt 5.15 installation, and the repository's
+content check re-verifies this table against a real kit, so a row that is wrong here
+hides a real Qt 6 API.
 
-- `Qt::SkipEmptyParts` / `Qt::SplitBehaviorFlags` exist in 5.15 (since 5.14), and
-  `QString::SkipEmptyParts` is already the deprecated spelling there. Use the `Qt::` form.
-- `qsizetype` is typedef'd in `qglobal.h` in 5.15 — but Qt 5 containers still take and return
-  `int`, so a loop over `qsizetype` against `list.size()` is a mismatch to avoid, not an
-  undefined name.
-- `QStringView` exists in 5.15 (`<QtCore/QStringView>`), unlike `QAnyStringView`,
-  `QUtf16View`, `QUtf8StringView`, `QByteArrayView`, `QStringConverter`.
-- `QWheelEvent::position()` / `globalPosition()` exist in 5.15 (the `pos()` / `globalPos()`
-  forms are the deprecated ones there). `QMouseEvent::position()` does **not** exist in 5.15 —
-  that rename is Qt 6, where `QMouseEvent` and `QWheelEvent` were unified. Use
-  `localPos()` / `windowPos()` / `screenPos()` / `pos()` / `globalPos()` for mouse events.
-- `QColor::name(QColor::NameFormat)`, `QIcon::name()`, `QTimer::callOnTimeout()`,
-  `QMetaObject::invokeMethod` with a functor, `QVariant::userType()`, `QOperatingSystemVersion`,
-  `QVersionNumber`, `qEnvironmentVariableIsSet()` all exist in Qt 5.15. Do not flag them.
-- `std::as_const` is fine (C++17); `qAsConst` is the Qt 5 spelling and is available too.
+| Qt 6-era name | Status in Qt 5.15 |
+|---------------|-------------------|
+| `Qt::SkipEmptyParts`, `Qt::SplitBehaviorFlags` | present (`qnamespace.h`, since 5.14); `QString::SkipEmptyParts` is the deprecated spelling |
+| `qsizetype` | typedef'd in `qglobal.h`; Qt 5 containers still take and return `int`, so loop counters over `.size()` should be `int` |
+| `QStringView` | present (`<QtCore/QStringView>`) |
+| `QWheelEvent::position()`, `globalPosition()` | present; the `pos()`/`globalPos()` forms carry `QT_DEPRECATED_VERSION_X_5_15` here |
+| `QColor::name(QColor::NameFormat)`, `QIcon::name()` | present (`qcolor.h`, `qicon.h`) |
+| `QTimer::callOnTimeout(...)` | present (`qtimer.h`) |
+| `QMetaObject::invokeMethod` with a functor | present |
+| `QVariant::userType()`, `QOperatingSystemVersion`, `QVersionNumber` | present |
+| `qEnvironmentVariableIsSet()` | present (`qglobal.h`) |
+| `std::as_const` | fine (C++17); `qAsConst` is the Qt 5 spelling and is available too |
+
+One neighbour needs the opposite instruction: `QMouseEvent::position()` does **not**
+exist in Qt 5 — that rename is Qt 6, where mouse and wheel events were unified. Use
+`localPos()` / `windowPos()` / `screenPos()` / `pos()` / `globalPos()` for mouse events.

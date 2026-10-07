@@ -110,9 +110,9 @@ set_tests_properties(tst_model PROPERTIES
 
 - The test class derives from `QObject` and uses `private slots:` for test functions;
   `QTEST_MAIN(TestModel)` generates `main` with a `QApplication` — the right choice when any
-  widget is constructed. `QTEST_GUILESS_MAIN` (since Qt 5.5) creates a `QCoreApplication`
+  widget is constructed. `QTEST_GUILESS_MAIN` creates a `QCoreApplication`
   instead, so it is for non-GUI classes that still need the event loop; `QTEST_APPLESS_MAIN`
-  (since Qt 5.6) creates no application object at all.
+  creates no application object at all.
 - A Widgets test links `Qt5::Test` **and** needs a platform plugin at runtime:
   `QT_QPA_PLATFORM=offscreen` in the test environment makes it headless (the kit ships
   `plugins/platforms/qoffscreen.dll`; `qminimal.dll` is the fallback when it is absent).

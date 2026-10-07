@@ -47,7 +47,7 @@ cmake -S MyApp -B build -G "Ninja Multi-Config" -DQt5_DIR=C:/Qt/5.15.2/msvc2019_
 cmake --build build --config Release
 ```
 
-Two ways to tell CMake where Qt is, and they are not interchangeable:
+Two mechanisms are worth using, and they are not interchangeable:
 
 | Mechanism | Scope |
 |---|---|
@@ -55,9 +55,11 @@ Two ways to tell CMake where Qt is, and they are not interchangeable:
 | `-DQt5_DIR=<qt>/lib/cmake/Qt5` | the `Qt5` package only; must be the directory containing `Qt5Config.cmake` |
 
 Prefer `CMAKE_PREFIX_PATH`. `Qt5_DIR` is exact and is the one to use when several Qt
-versions are installed and the choice must be forced. `-DQT_DIR`, `-DQt5_ROOT`,
-`-DQTDIR` are **not** recognized by `find_package(Qt5)`; `QTDIR` is a qmake-era
-environment variable and has no effect on CMake configuration.
+versions are installed and the choice must be forced. A third input, `-DQt5_ROOT=<qt>`,
+also works — since CMake 3.12 the config-mode search honors `<PackageName>_ROOT` as an
+extra prefix — but it adds nothing over `Qt5_DIR`, so prefer one of the two above.
+`-DQT_DIR` and `-DQTDIR` are **not** recognized by `find_package(Qt5)`; `QTDIR` is a
+qmake-era environment variable and has no effect on CMake configuration.
 
 Configure output that proves the right Qt was picked: `Qt5Config.cmake` sets
 `Qt5_VERSION`, so add `message(STATUS "Qt ${Qt5_VERSION}")` after `find_package` when
